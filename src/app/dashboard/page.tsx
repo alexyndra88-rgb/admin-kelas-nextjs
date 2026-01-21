@@ -1,6 +1,7 @@
 "use client"
 
 import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useState, useEffect } from "react"
 
@@ -18,8 +19,17 @@ interface WaliKelas {
 
 export default function DashboardPage() {
     const { data: session } = useSession()
+    const router = useRouter()
     const isAdmin = session?.user?.role === "admin"
+    const isKepsek = session?.user?.role === "kepsek"
     const userKelas = session?.user?.kelas
+
+    // Redirect kepsek to their special dashboard
+    useEffect(() => {
+        if (isKepsek) {
+            router.push("/dashboard/kepala-sekolah")
+        }
+    }, [isKepsek, router])
 
     const [schoolInfo, setSchoolInfo] = useState<SchoolInfo | null>(null)
     const [myWaliInfo, setMyWaliInfo] = useState<WaliKelas | null>(null)

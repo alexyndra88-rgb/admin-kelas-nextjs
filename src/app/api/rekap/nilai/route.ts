@@ -1,0 +1,106 @@
+import { NextRequest, NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+
+const mapelList = ["Bahasa Indonesia", "Matematika", "IPA", "IPS", "PKn", "Agama", "Penjas", "SBdP", "Bahasa Sunda"]
+const jenisNilaiList = ["UH1", "UH2", "UH3", "UTS", "UAS"]
+
+// GET rekap nilai
+export async function GET(request: NextRequest) {
+    try {
+        const session = await getServerSession(authOptions)
+        if (!session) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+        }
+
+        const { searchParams } = new URL(request.url)
+        const kelas = parseInt(searchParams.get("kelas") || "5")
+        const semester = parseInt(searchParams.get("semester") || "2")
+        const mapel = searchParams.get("mapel") || "" // Optional: specific mapel
+
+        // Get all students in the class
+        const students = await prisma.siswa.findMany({
+            where: { kelas },
+            orderBy: { nama: "asc" },
+            select: { id: true, nis: true, nama: true },
+        })
+
+        // Determine which jenis nilai are for which semester
+        // Semester 1: UH1, UH2, UH3, UTS (mid), UAS (final of sem 1)
+        // Semester 2: UH1, UH2, UH3, UTS, UAS (but we treat them as different entries)
+        // For simplicity, we'll just fetch all nilai and let the user filter by semester in the UI
+        // In a more complex system, nilai would have a semester field
+
+        // Get all nilai for the class
+        const whereClause: { siswa: { kelas: number }; mapel?: string } = {
+            siswa: { kelas },
+        }
+        if (mapel) {
+            whereClause.mapel = mapel
+        }
+
+        const nilai = await prisma.nilai.findMany({
+            where: whereClause,
+            select: {
+                siswaId: true,
+                mapel: true,
+                jenisNilai: true,
+                nilai: true,
+            },
+        })
+
+        // Build recap data per student
+        const recap = students.map((student) => {
+            const studentNilai = nilai.filter((n) => n.siswaId === student.id)
+
+            // Group by mapel
+            const nilaiByMapel: { [mapel: string]: { [jenis: string]: number } } = {}
+
+            studentNilai.forEach((n) => {
+                if (!nilaiByMapel[n.mapel]) {
+                    nilaiByMapel[n.mapel] = {}
+                }
+                nilaiByMapel[n.mapel][n.jenisNilai] = n.nilai
+            })
+
+            // Calculate averages per mapel
+            const mapelAverages: { [mapel: string]: number } = {}
+            Object.keys(nilaiByMapel).forEach((m) => {
+                const vals = Object.values(nilaiByMapel[m])
+                if (vals.length > 0) {
+                    mapelAverages[m] = Math.round(vals.reduce((a, b) => a + b, 0) / vals.length)
+                }
+            })
+
+            // Overall average
+            const allVals = Object.values(mapelAverages)
+            const overallAverage = allVals.length > 0
+                ? Math.round(allVals.reduce((a, b) => a + b, 0) / allVals.length)
+                : 0
+
+            return {
+                id: student.id,
+                nis: student.nis,
+                nama: student.nama,
+                nilaiByMapel,
+                mapelAverages,
+                overallAverage,
+            }
+        })
+
+        return NextResponse.json({
+            recap,
+            meta: {
+                kelas,
+                semester,
+                mapelList,
+                jenisNilaiList,
+                selectedMapel: mapel || "all",
+            },
+        })
+    } catch (error) {
+        console.error("Error fetching rekap nilai:", error)
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    }
+}

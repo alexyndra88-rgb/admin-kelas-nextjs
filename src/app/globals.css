@@ -1,45 +1,89 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 :root {
-  --bg-primary: #0f0f23;
-  --bg-secondary: #1a1a2e;
-  --bg-card: #16213e;
-  --text-primary: #ffffff;
-  --text-secondary: #a0a0b0;
-  --accent-primary: #667eea;
-  --accent-secondary: #764ba2;
+  --background: #f3f4f6;
+  --foreground: #111111;
+  --vercel-blue: #0070f3;
+  --vercel-cyan: #50e3c2;
+  --vercel-violet: #7928ca;
+  --vercel-pink: #ff0080;
+  --vercel-red: #ff4d4f;
+  --accents-1: #fafafa;
+  --accents-2: #eaeaea;
+  --accents-3: #999999;
+  --accents-4: #888888;
+  --accents-5: #666666;
+  --accents-6: #444444;
+  --accents-7: #333333;
+  --accents-8: #111111;
+  --sidebar: #ffffff;
+  --border: #e5e7eb;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  min-height: 100vh;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Utilities */
+.turbo-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  /* Slightly rounded, like the Turbo popup */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  /* Soft shadow */
+  transition: all 0.2s ease;
+}
+
+.turbo-card:hover {
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+.turbo-sidebar {
+  background: white;
+  border-right: 1px solid var(--border);
+}
+
+.turbo-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  background: var(--accents-2);
+  color: var(--accents-7);
+}
+
+.turbo-gradient-text {
+  background: linear-gradient(to right, #0070f3, #7928ca);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 /* Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--bg-primary);
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--bg-card);
-  border-radius: 4px;
+  background: var(--accents-3);
+  border-radius: 3px;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-primary);
-}
-
-/* Form inputs */
-input:focus,
-select:focus,
-textarea:focus {
-  outline: none;
-  border-color: var(--accent-primary) !important;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+::-webkit-scrollbar-track {
+  background: transparent;
 }

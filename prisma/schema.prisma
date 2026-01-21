@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User authentication
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  name      String
+  role      String   @default("guru") // admin, guru
+  kelas     Int?     // 1-6, null for admin
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// School settings
+model SchoolSettings {
+  id            String  @id @default("main")
+  namaSekolah   String  @default("SDN 2 Nangerang")
+  kepalaSekolah String?
+  nipKepsek     String?
+  tahunAjaran   String  @default("2025/2026")
+}
+
+// Wali kelas per class
+model WaliKelas {
+  kelas Int     @id // 1-6
+  nama  String
+  nip   String?
+}
+
+// Student data
+model Siswa {
+  id           String    @id @default(cuid())
+  nis          String    @unique
+  nama         String
+  jenisKelamin String
+  kelas        Int
+  alamat       String?
+  namaOrtu     String?
+  noHp         String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  absensi      Absensi[]
+  nilai        Nilai[]
+}
+
+// Daily attendance
+model Absensi {
+  id      String   @id @default(cuid())
+  siswaId String
+  siswa   Siswa    @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  tanggal DateTime @db.Date
+  status  String   // H, S, I, A
+
+  @@unique([siswaId, tanggal])
+  @@index([tanggal])
+}
+
+// Grades
+model Nilai {
+  id         String @id @default(cuid())
+  siswaId    String
+  siswa      Siswa  @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  mapel      String
+  jenisNilai String // UH1, UH2, UH3, UTS, UAS
+  nilai      Float
+
+  @@unique([siswaId, mapel, jenisNilai])
+}
+
+// Daily journal
+model Jurnal {
+  id         String   @id @default(cuid())
+  kelas      Int
+  tanggal    DateTime @db.Date
+  jamKe      String
+  mapel      String
+  materi     String
+  metode     String
+  catatan    String?
+  siswaAbsen String?
+  createdAt  DateTime @default(now())
+
+  @@index([kelas, tanggal])
+}

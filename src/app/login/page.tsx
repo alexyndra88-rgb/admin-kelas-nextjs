@@ -37,49 +37,49 @@ export default function LoginPage() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 via-white to-blue-100">
             <div className="w-full max-w-md">
-                {/* Logo */}
+                {/* Logo & Header */}
                 <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-[#667eea] to-[#764ba2] mb-4">
+                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-200 mb-4">
                         <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                         </svg>
                     </div>
-                    <h1 className="text-2xl font-bold bg-gradient-to-r from-[#667eea] to-[#764ba2] bg-clip-text text-transparent">
+                    <h1 className="text-2xl font-bold text-gray-900">
                         SDN 2 Nangerang
                     </h1>
-                    <p className="text-[#a0a0b0] mt-2">Administrasi Wali Kelas</p>
+                    <p className="text-gray-500 mt-1">Administrasi Wali Kelas</p>
                 </div>
 
-                {/* Login Form */}
-                <div className="bg-[#1a1a2e] border border-white/10 rounded-xl p-8">
-                    <h2 className="text-xl font-semibold mb-6 text-center">Masuk ke Akun</h2>
+                {/* Login Card */}
+                <div className="bg-white border border-gray-200 rounded-2xl shadow-xl shadow-gray-200/50 p-8">
+                    <h2 className="text-xl font-semibold text-gray-900 mb-6 text-center">Masuk ke Akun</h2>
 
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <div>
-                            <label className="block text-sm font-medium text-[#a0a0b0] mb-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Username
                             </label>
                             <input
                                 type="text"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
-                                className="w-full px-4 py-3 bg-[#16213e] border border-white/10 rounded-lg text-white placeholder-[#a0a0b0] transition-all"
+                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                                 placeholder="Masukkan username"
                                 required
                             />
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-[#a0a0b0] mb-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Password
                             </label>
                             <input
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-4 py-3 bg-[#16213e] border border-white/10 rounded-lg text-white placeholder-[#a0a0b0] transition-all"
+                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                                 placeholder="Masukkan password"
                                 required
                             />
@@ -88,7 +88,7 @@ export default function LoginPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-3 px-4 bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white font-semibold rounded-lg hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full py-3 px-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-xl hover:from-blue-600 hover:to-blue-700 shadow-lg shadow-blue-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {loading ? (
                                 <span className="flex items-center justify-center gap-2">
@@ -105,7 +105,8 @@ export default function LoginPage() {
                     </form>
                 </div>
 
-                <p className="text-center text-[#a0a0b0] text-sm mt-6">
+                {/* Footer */}
+                <p className="text-center text-gray-400 text-sm mt-6">
                     Tahun Ajaran 2025/2026
                 </p>
             </div>

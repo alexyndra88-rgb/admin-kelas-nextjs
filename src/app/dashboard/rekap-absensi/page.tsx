@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useSession } from "next-auth/react"
 import toast from "react-hot-toast"
-import * as XLSX from "xlsx"
+import * as XLSX from "xlsx-js-style"
 
 interface RekapSiswa {
     id: string
@@ -16,6 +16,7 @@ interface RekapSiswa {
     totalRecorded: number
     totalSchoolDays: number
     percentage: number
+    dailyLogs?: Record<string, string>
 }
 
 interface RekapMeta {
@@ -81,7 +82,7 @@ export default function RekapAbsensiPage() {
     }, [fetchData])
 
     const handleExport = () => {
-        if (recap.length === 0) {
+        if (recap.length === 0 || !meta) {
             toast.error("Tidak ada data untuk diexport")
             return
         }
@@ -90,37 +91,360 @@ export default function RekapAbsensiPage() {
             ? `${monthNames[month]} ${year}`
             : `Semester ${semester} ${semester === 1 ? year : year - 1}/${year}`
 
-        const data = recap.map((s, i) => ({
-            No: i + 1,
-            NIS: s.nis,
-            "Nama Siswa": s.nama,
-            Hadir: s.hadir,
-            Sakit: s.sakit,
-            Izin: s.izin,
-            Alpha: s.alpha,
-            "Total Hari Efektif": s.totalSchoolDays,
-            "Persentase Kehadiran (%)": s.percentage,
-        }))
+        // Generate dynamic daily headers
+        const start = new Date(meta.startDate)
+        const end = new Date(meta.endDate)
+        const dateHeaders: string[] = []
+        const dateKeys: string[] = []
 
-        const ws = XLSX.utils.json_to_sheet(data)
+        const current = new Date(start)
+        while (current <= end) {
+            dateHeaders.push(current.getDate().toString())
+            dateKeys.push(current.toISOString().split('T')[0])
+            current.setDate(current.getDate() + 1)
+        }
 
-        // Set column widths
-        ws["!cols"] = [
-            { wch: 5 },  // No
-            { wch: 12 }, // NIS
-            { wch: 30 }, // Nama
-            { wch: 8 },  // Hadir
-            { wch: 8 },  // Sakit
-            { wch: 8 },  // Izin
-            { wch: 8 },  // Alpha
-            { wch: 18 }, // Total Hari
-            { wch: 22 }, // Persentase
-        ]
+        // Helper style objects
+        const borderStyle = {
+            top: { style: "thin", color: { rgb: "000000" } },
+            bottom: { style: "thin", color: { rgb: "000000" } },
+            left: { style: "thin", color: { rgb: "000000" } },
+            right: { style: "thin", color: { rgb: "000000" } }
+        }
+
+        const centerStyle = {
+            alignment: { horizontal: "center", vertical: "center" }
+        }
+
+        const titleStyle = {
+            font: { bold: true, sz: 14 },
+            alignment: { horizontal: "center", vertical: "center" }
+        }
+
+        const wsData: any[][] = []
+        let ws: any
+        const summaryRowsStartOffset = 2 // Gap between tables
+
+        // Helper to get cell ref
+        const getRef = (r: number, c: number) => XLSX.utils.encode_cell({ r, c })
+
+        if (type === "month") {
+            // --- MONTHLY (DAILY) LAYOUT ---
+
+            // 1. Matrix Headers (No, NIS, Nama, Dates...)
+            const matrixHeaders = ["No", "NIS", "Nama Siswa", ...dateHeaders]
+
+            // 2. Matrix Data (Rows with daily logs only)
+            const matrixRows = recap.map((s, i) => {
+                const dailyCells = dateKeys.map(dateKey => s.dailyLogs?.[dateKey] || "")
+                return [i + 1, s.nis, s.nama, ...dailyCells]
+            })
+
+            // 3. Summary Headers
+            const summaryHeaders = ["No", "NIS", "Nama Siswa", "Hadir (H)", "Sakit (S)", "Izin (I)", "Alpha (A)", "Total Hari Efektif", "Persentase (%)"]
+
+            // 4. Summary Rows
+            const summaryRows = recap.map((s, i) => [
+                i + 1, s.nis, s.nama, s.hadir, s.sakit, s.izin, s.alpha, s.totalSchoolDays, s.percentage
+            ])
+
+            // Build Row Structure
+            wsData.push([`Rekap Absensi Kelas ${kelas}`]) // Row 0
+            wsData.push([`Periode: ${periodLabel}`]) // Row 1
+            wsData.push([]) // Row 2
+
+            // Matrix Table
+            wsData.push(matrixHeaders) // Row 3
+            wsData.push(...matrixRows) // Row 4+
+
+            // Spacer
+            wsData.push([])
+            wsData.push([])
+
+            // Summary Table
+            wsData.push(summaryHeaders)
+            wsData.push(...summaryRows)
+
+            ws = XLSX.utils.aoa_to_sheet(wsData)
+
+            // --- Styling Month Layout ---
+
+            // Merge Titles
+            const totalWidth = 3 + dateHeaders.length
+            ws['!merges'] = [
+                { s: { r: 0, c: 0 }, e: { r: 0, c: totalWidth - 1 } },
+                { s: { r: 1, c: 0 }, e: { r: 1, c: totalWidth - 1 } }
+            ]
+
+            // Center Titles
+            if (!ws['A1']) ws['A1'] = { v: `Rekap Absensi Kelas ${kelas}`, t: 's' }
+            ws['A1'].s = titleStyle
+            if (!ws['A2']) ws['A2'] = { v: `Periode: ${periodLabel}`, t: 's' }
+            ws['A2'].s = { ...titleStyle, font: { bold: true, sz: 12 } }
+
+            const matrixStartRow = 4 // Index 4 (Row 5 in Excel)
+            const matrixEndRow = 3 + matrixRows.length // Index
+
+            // Style Matrix Headers
+            for (let C = 0; C < matrixHeaders.length; C++) {
+                const ref = getRef(3, C)
+                if (!ws[ref]) ws[ref] = { v: "", t: 's' }
+                ws[ref].s = {
+                    border: borderStyle,
+                    fill: { fgColor: { rgb: "E0E0E0" } },
+                    font: { bold: true },
+                    alignment: { horizontal: "center", vertical: "center" }
+                }
+                // Highlight Headers
+                if (C >= 3) {
+                    const dateIndex = C - 3
+                    const dateStr = dateKeys[dateIndex]
+                    const dateDate = new Date(dateStr)
+                    const isWeekend = dateDate.getDay() === 0 || dateDate.getDay() === 6
+                    const isHoliday = meta.holidaysInPeriod && meta.holidaysInPeriod.some(h => new Date(h).toISOString().split('T')[0] === dateStr)
+                    if (isWeekend || isHoliday) {
+                        ws[ref].s.fill = { fgColor: { rgb: "FFCCCC" } }
+                        ws[ref].s.font = { bold: true, color: { rgb: "FF0000" } }
+                    }
+                }
+            }
+
+            // Style Matrix Data
+            const range = XLSX.utils.decode_range(ws['!ref'] || "A1:A1")
+            for (let R = matrixStartRow; R <= matrixEndRow; R++) {
+                for (let C = 0; C < matrixHeaders.length; C++) {
+                    const ref = getRef(R, C)
+                    if (!ws[ref]) ws[ref] = { v: "", t: 's' }
+                    ws[ref].s = { border: borderStyle }
+                    if (C === 0 || C === 1 || C >= 3) ws[ref].s.alignment = { horizontal: "center" }
+
+                    // Off Day Styling
+                    if (C >= 3) {
+                        const dateIndex = C - 3
+                        const dateStr = dateKeys[dateIndex]
+                        const dateDate = new Date(dateStr)
+                        const isWeekend = dateDate.getDay() === 0 || dateDate.getDay() === 6
+                        const isHoliday = meta.holidaysInPeriod && meta.holidaysInPeriod.some(h => new Date(h).toISOString().split('T')[0] === dateStr)
+                        if (isWeekend || isHoliday) {
+                            ws[ref].v = "X"
+                            ws[ref].s.fill = { fgColor: { rgb: "FFCCCC" } }
+                            ws[ref].s.font = { color: { rgb: "FF0000" } }
+                        }
+                    }
+                }
+            }
+            // Style Summary Table (Month)
+            const summaryHeaderIndex = matrixEndRow + 3
+            const summaryHeadersCount = summaryHeaders.length
+            const summaryStartRow = summaryHeaderIndex + 1
+            const summaryEndRow = summaryHeaderIndex + summaryRows.length
+
+            for (let C = 0; C < summaryHeadersCount; C++) {
+                const ref = getRef(summaryHeaderIndex, C)
+                if (!ws[ref]) ws[ref] = { v: "", t: 's' }
+                ws[ref].s = {
+                    border: borderStyle,
+                    fill: { fgColor: { rgb: "E0E0E0" } },
+                    font: { bold: true },
+                    alignment: { horizontal: "center", vertical: "center" }
+                }
+            }
+            for (let R = summaryStartRow; R <= summaryEndRow; R++) {
+                for (let C = 0; C < summaryHeadersCount; C++) {
+                    const ref = getRef(R, C)
+                    if (!ws[ref]) ws[ref] = { v: "", t: 's' }
+                    ws[ref].s = { border: borderStyle }
+                    if (C !== 2) ws[ref].s.alignment = { horizontal: "center" }
+                }
+            }
+            // Col Widths
+            ws["!cols"] = [
+                { wch: 5 }, { wch: 12 }, { wch: 30 },
+                ...dateHeaders.map(() => ({ wch: 4 }))
+            ]
+
+        } else {
+            // --- SEMESTER (MONTHLY AGGREGATE) LAYOUT ---
+
+            // 1. Identify Months in Range
+            const startD = new Date(meta.startDate)
+            const endD = new Date(meta.endDate)
+            const monthsInSemester: { index: number, name: string, year: number }[] = []
+
+            let currentM = new Date(startD)
+            // Normalize to start of month
+            currentM.setDate(1)
+
+            while (currentM <= endD) {
+                monthsInSemester.push({
+                    index: currentM.getMonth(),
+                    name: monthNames[currentM.getMonth()],
+                    year: currentM.getFullYear()
+                })
+                currentM.setMonth(currentM.getMonth() + 1)
+            }
+
+            // 2. Headers
+            // Row 3: Month Names (Merged 4 cols)
+            // Row 4: H, S, I, A (Repeated)
+
+            const monthHeaderRow: any[] = ["No", "NIS", "Nama Siswa"]
+            const subHeaderRow: any[] = ["", "", ""] // Empty for No, NIS, Nama (will merge vertically)
+
+            monthsInSemester.forEach(m => {
+                monthHeaderRow.push(m.name)
+                monthHeaderRow.push("", "", "") // Placeholders for merge
+                subHeaderRow.push("H", "S", "I", "A")
+            })
+
+            // 3. Data Rows
+            const semesterRows = recap.map((s, i) => {
+                const rowData: any[] = [i + 1, s.nis, s.nama]
+
+                monthsInSemester.forEach(m => {
+                    // Aggregate for this month
+                    let h = 0, sk = 0, iz = 0, al = 0
+
+                    if (s.dailyLogs) {
+                        for (const [dateStr, status] of Object.entries(s.dailyLogs)) {
+                            const d = new Date(dateStr)
+                            if (d.getMonth() === m.index && d.getFullYear() === m.year) {
+                                if (status === 'H') h++
+                                else if (status === 'S') sk++
+                                else if (status === 'I') iz++
+                                else if (status === 'A') al++
+                            }
+                        }
+                    }
+                    rowData.push(h, sk, iz, al)
+                })
+                return rowData
+            })
+
+            // 4. Summary Headers
+            const summaryHeaders = ["No", "NIS", "Nama Siswa", "Hadir (H)", "Sakit (S)", "Izin (I)", "Alpha (A)", "Total Hari Efektif", "Persentase (%)"]
+            const summaryRows = recap.map((s, i) => [
+                i + 1, s.nis, s.nama, s.hadir, s.sakit, s.izin, s.alpha, s.totalSchoolDays, s.percentage
+            ])
+
+            // Build Row Structure
+            wsData.push([`Rekap Absensi Kelas ${kelas}`]) // Row 0
+            wsData.push([`Periode: ${periodLabel}`]) // Row 1
+            wsData.push([]) // Row 2
+
+            wsData.push(monthHeaderRow) // Row 3
+            wsData.push(subHeaderRow) // Row 4
+            wsData.push(...semesterRows) // Row 5+
+
+            wsData.push([])
+            wsData.push([])
+
+            wsData.push(summaryHeaders)
+            wsData.push(...summaryRows)
+
+            ws = XLSX.utils.aoa_to_sheet(wsData)
+
+            // --- Styling Semester Layout ---
+            // Calculate Total Width
+            // 3 (Fixed) + Months * 4
+            const totalSemWidth = 3 + (monthsInSemester.length * 4)
+
+            // Merges
+            ws['!merges'] = [
+                { s: { r: 0, c: 0 }, e: { r: 0, c: totalSemWidth - 1 } }, // Title
+                { s: { r: 1, c: 0 }, e: { r: 1, c: totalSemWidth - 1 } }, // Period
+                // Merge No, NIS, Nama Vertically (Row 3-4)
+                { s: { r: 3, c: 0 }, e: { r: 4, c: 0 } },
+                { s: { r: 3, c: 1 }, e: { r: 4, c: 1 } },
+                { s: { r: 3, c: 2 }, e: { r: 4, c: 2 } },
+            ]
+
+            // Merge Month Headers Horizontally
+            monthsInSemester.forEach((_, idx) => {
+                const startCol = 3 + (idx * 4)
+                ws['!merges'].push({ s: { r: 3, c: startCol }, e: { r: 3, c: startCol + 3 } })
+            })
+
+            // Center Titles
+            if (!ws['A1']) ws['A1'] = { v: `Rekap Absensi Kelas ${kelas}`, t: 's' }
+            ws['A1'].s = titleStyle
+            if (!ws['A2']) ws['A2'] = { v: `Periode: ${periodLabel}`, t: 's' }
+            ws['A2'].s = { ...titleStyle, font: { bold: true, sz: 12 } }
+
+            // Style Headers (Rows 3 & 4)
+            for (let R = 3; R <= 4; R++) {
+                for (let C = 0; C < totalSemWidth; C++) {
+                    const ref = getRef(R, C)
+                    if (!ws[ref]) ws[ref] = { v: "", t: 's' }
+                    ws[ref].s = {
+                        border: borderStyle,
+                        fill: { fgColor: { rgb: "E0E0E0" } },
+                        font: { bold: true },
+                        alignment: { horizontal: "center", vertical: "center" }
+                    }
+                    if (R === 3 && C >= 3) {
+                        // Month Names - Maybe different color?
+                        ws[ref].s.fill = { fgColor: { rgb: "D1E7DD" } } // Light green/blue
+                    }
+                }
+            }
+
+            // Style Data Rows
+            const semRowsStart = 5
+            const semRowsEnd = 4 + semesterRows.length
+
+            for (let R = semRowsStart; R <= semRowsEnd; R++) {
+                for (let C = 0; C < totalSemWidth; C++) {
+                    const ref = getRef(R, C)
+                    if (!ws[ref]) ws[ref] = { v: "", t: 's' }
+                    ws[ref].s = { border: borderStyle }
+                    if (C === 0 || C === 1 || C >= 3) ws[ref].s.alignment = { horizontal: "center" }
+                }
+            }
+
+            // Style Summary
+            const sumStartIndex = semRowsEnd + 3
+            const sumStartRow = sumStartIndex + 1
+            const sumEndRow = sumStartIndex + summaryRows.length
+
+            for (let C = 0; C < summaryHeaders.length; C++) {
+                const ref = getRef(sumStartIndex, C)
+                if (!ws[ref]) ws[ref] = { v: "", t: 's' }
+                ws[ref].s = {
+                    border: borderStyle,
+                    fill: { fgColor: { rgb: "E0E0E0" } },
+                    font: { bold: true },
+                    alignment: { horizontal: "center", vertical: "center" }
+                }
+            }
+            for (let R = sumStartRow; R <= sumEndRow; R++) {
+                for (let C = 0; C < summaryHeaders.length; C++) {
+                    const ref = getRef(R, C)
+                    if (!ws[ref]) ws[ref] = { v: "", t: 's' }
+                    ws[ref].s = { border: borderStyle }
+                    if (C !== 2) ws[ref].s.alignment = { horizontal: "center" }
+                }
+            }
+
+            // Col Widths
+            const cols = [
+                { wch: 5 }, { wch: 12 }, { wch: 30 }
+            ]
+            monthsInSemester.forEach(() => {
+                cols.push({ wch: 5 }, { wch: 5 }, { wch: 5 }, { wch: 5 })
+            })
+            ws["!cols"] = cols
+
+        }
 
         const wb = XLSX.utils.book_new()
-        XLSX.utils.book_append_sheet(wb, ws, "Rekap Absensi")
-        XLSX.writeFile(wb, `Rekap_Absensi_Kelas${kelas}_${periodLabel.replace(/\s/g, "_")}.xlsx`)
-        toast.success("Data berhasil diexport!")
+        // Sheet Name based on period - Remove illegal chars : \ / ? * [ ]
+        let sheetName = periodLabel.replace(/[\/\\\?\*\[\]\:]/g, "-")
+        sheetName = sheetName.length > 30 ? sheetName.substring(0, 30) : sheetName
+
+        XLSX.utils.book_append_sheet(wb, ws, sheetName)
+        XLSX.writeFile(wb, `Rekap_Absensi_Kelas${kelas}_${sheetName}.xlsx`)
+        toast.success("Excel berhasil didownload!")
     }
 
     const formatDate = (dateStr: string) => {

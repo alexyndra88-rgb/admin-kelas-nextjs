@@ -64,11 +64,14 @@ export async function GET(request: NextRequest) {
         const recap = students.map((student) => {
             const studentAbsensi = absensi.filter((a) => a.siswaId === student.id)
             const counts = { H: 0, S: 0, I: 0, A: 0 }
+            const dailyLogs: Record<string, string> = {}
 
             studentAbsensi.forEach((a) => {
                 if (counts[a.status as keyof typeof counts] !== undefined) {
                     counts[a.status as keyof typeof counts]++
                 }
+                const dateStr = a.tanggal.toISOString().split('T')[0]
+                dailyLogs[dateStr] = a.status
             })
 
             const totalRecorded = counts.H + counts.S + counts.I + counts.A
@@ -87,6 +90,7 @@ export async function GET(request: NextRequest) {
                 totalRecorded,
                 totalSchoolDays,
                 percentage,
+                dailyLogs,
             }
         })
 

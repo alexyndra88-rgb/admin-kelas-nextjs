@@ -32,10 +32,11 @@ async function main() {
                     where: { id: r.id },
                     data: { tanggal: newDate }
                 })
-            } catch (e) {
+            } catch (e: unknown) {
                 // If update fails, it's likely a unique constraint violation (collision with existing normalized record)
                 // We can delete this one if it's a "duplicate" in the target slot
-                if (e.code === 'P2002') {
+                const error = e as { code?: string }
+                if (error.code === 'P2002') {
                     console.log(`Collision for ${r.id}, deleting as duplicate...`)
                     await prisma.absensi.delete({ where: { id: r.id } })
                 } else {

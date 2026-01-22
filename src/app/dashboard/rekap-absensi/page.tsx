@@ -100,7 +100,11 @@ export default function RekapAbsensiPage() {
         const current = new Date(start)
         while (current <= end) {
             dateHeaders.push(current.getDate().toString())
-            dateKeys.push(current.toISOString().split('T')[0])
+            // Use local date components to avoid UTC shift
+            const y = current.getFullYear()
+            const m = String(current.getMonth() + 1).padStart(2, '0')
+            const d = String(current.getDate()).padStart(2, '0')
+            dateKeys.push(`${y}-${m}-${d}`)
             current.setDate(current.getDate() + 1)
         }
 
@@ -140,13 +144,27 @@ export default function RekapAbsensiPage() {
                 return [i + 1, s.nis, s.nama, ...dailyCells]
             })
 
-            // 3. Summary Headers
-            const summaryHeaders = ["No", "NIS", "Nama Siswa", "Hadir (H)", "Sakit (S)", "Izin (I)", "Alpha (A)", "Total Hari Efektif", "Persentase (%)"]
+            // 3. Summary Section Construction (With Merges)
+            const summaryColsMerge = 2 // Merge 2 date-columns for 1 summary-column (User requested change from 4 to 2)
+            const rawSummaryStats = ["Hadir (H)", "Sakit (S)", "Izin (I)", "Alpha (A)", "Hari Efektif", "Persentase (%)"]
 
-            // 4. Summary Rows
-            const summaryRows = recap.map((s, i) => [
-                i + 1, s.nis, s.nama, s.hadir, s.sakit, s.izin, s.alpha, s.totalSchoolDays, s.percentage
-            ])
+            // Build Header Row
+            const finalSummaryHeaderRow = ["No", "NIS", "Nama Siswa"]
+            rawSummaryStats.forEach(h => {
+                finalSummaryHeaderRow.push(h)
+                for (let k = 1; k < summaryColsMerge; k++) finalSummaryHeaderRow.push("")
+            })
+
+            // Build Data Rows
+            const finalSummaryRows = recap.map((s, i) => {
+                const row: any[] = [i + 1, s.nis, s.nama]
+                const stats = [s.hadir, s.sakit, s.izin, s.alpha, s.totalSchoolDays, s.percentage + "%"]
+                stats.forEach(val => {
+                    row.push(val)
+                    for (let k = 1; k < summaryColsMerge; k++) row.push("")
+                })
+                return row
+            })
 
             // Build Row Structure
             wsData.push([`Rekap Absensi Kelas ${kelas}`]) // Row 0
@@ -162,8 +180,8 @@ export default function RekapAbsensiPage() {
             wsData.push([])
 
             // Summary Table
-            wsData.push(summaryHeaders)
-            wsData.push(...summaryRows)
+            wsData.push(finalSummaryHeaderRow)
+            wsData.push(...finalSummaryRows)
 
             ws = XLSX.utils.aoa_to_sheet(wsData)
 
@@ -195,13 +213,13 @@ export default function RekapAbsensiPage() {
                     font: { bold: true },
                     alignment: { horizontal: "center", vertical: "center" }
                 }
-                // Highlight Headers
+                // Highlight Headers (Weekends)
                 if (C >= 3) {
                     const dateIndex = C - 3
                     const dateStr = dateKeys[dateIndex]
                     const dateDate = new Date(dateStr)
                     const isWeekend = dateDate.getDay() === 0 || dateDate.getDay() === 6
-                    const isHoliday = meta.holidaysInPeriod && meta.holidaysInPeriod.some(h => new Date(h).toISOString().split('T')[0] === dateStr)
+                    const isHoliday = meta.holidaysInPeriod && meta.holidaysInPeriod.includes(dateStr)
                     if (isWeekend || isHoliday) {
                         ws[ref].s.fill = { fgColor: { rgb: "FFCCCC" } }
                         ws[ref].s.font = { bold: true, color: { rgb: "FF0000" } }
@@ -211,7 +229,12 @@ export default function RekapAbsensiPage() {
 
             // Style Matrix Data
             const range = XLSX.utils.decode_range(ws['!ref'] || "A1:A1")
-            for (let R = matrixStartRow; R <= matrixEndRow; R++) {
+            for (let R = matrixStartRow; R <= matrixEndRow; R++) { // matrixRows count based
+                // Note: Loop bounds adjusted to match array length correctly
+                const rowIdx = R - matrixStartRow
+                const rowData = matrixRows[rowIdx]
+                if (!rowData) continue
+
                 for (let C = 0; C < matrixHeaders.length; C++) {
                     const ref = getRef(R, C)
                     if (!ws[ref]) ws[ref] = { v: "", t: 's' }
@@ -224,7 +247,7 @@ export default function RekapAbsensiPage() {
                         const dateStr = dateKeys[dateIndex]
                         const dateDate = new Date(dateStr)
                         const isWeekend = dateDate.getDay() === 0 || dateDate.getDay() === 6
-                        const isHoliday = meta.holidaysInPeriod && meta.holidaysInPeriod.some(h => new Date(h).toISOString().split('T')[0] === dateStr)
+                        const isHoliday = meta.holidaysInPeriod && meta.holidaysInPeriod.includes(dateStr)
                         if (isWeekend || isHoliday) {
                             ws[ref].v = "X"
                             ws[ref].s.fill = { fgColor: { rgb: "FFCCCC" } }
@@ -233,15 +256,28 @@ export default function RekapAbsensiPage() {
                     }
                 }
             }
-            // Style Summary Table (Month)
-            const summaryHeaderIndex = matrixEndRow + 3
-            const summaryHeadersCount = summaryHeaders.length
-            const summaryStartRow = summaryHeaderIndex + 1
-            const summaryEndRow = summaryHeaderIndex + summaryRows.length
 
-            for (let C = 0; C < summaryHeadersCount; C++) {
-                const ref = getRef(summaryHeaderIndex, C)
-                if (!ws[ref]) ws[ref] = { v: "", t: 's' }
+            // --- Summary Table Merges & Styles ---
+            const summaryHeaderRowIdx = matrixEndRow + 3
+            const summaryStartRowIdx = summaryHeaderRowIdx + 1
+            const summaryEndRowIdx = summaryHeaderRowIdx + finalSummaryRows.length
+
+            // Apply Merges for Summary Table
+            for (let R = summaryHeaderRowIdx; R <= summaryEndRowIdx; R++) {
+                for (let i = 0; i < rawSummaryStats.length; i++) {
+                    const startCol = 3 + (i * summaryColsMerge)
+                    const endCol = startCol + summaryColsMerge - 1
+                    ws['!merges'].push({ s: { r: R, c: startCol }, e: { r: R, c: endCol } })
+                }
+            }
+
+            // Style Summary Table
+            // Header
+            for (let C = 0; C < finalSummaryHeaderRow.length; C++) {
+                // Check if it's a "real" column (start of merge or No/NIS/Nama) or empty spacer
+                // Actually we style ALL cells in the range to ensure borders appear correctly around merged cells
+                const ref = getRef(summaryHeaderRowIdx, C)
+                if (!ws[ref]) ws[ref] = { v: "", t: 's' } // Create empty if needed for border
                 ws[ref].s = {
                     border: borderStyle,
                     fill: { fgColor: { rgb: "E0E0E0" } },
@@ -249,14 +285,18 @@ export default function RekapAbsensiPage() {
                     alignment: { horizontal: "center", vertical: "center" }
                 }
             }
-            for (let R = summaryStartRow; R <= summaryEndRow; R++) {
-                for (let C = 0; C < summaryHeadersCount; C++) {
+
+            // Data
+            for (let R = summaryStartRowIdx; R <= summaryEndRowIdx; R++) {
+                for (let C = 0; C < finalSummaryHeaderRow.length; C++) {
                     const ref = getRef(R, C)
                     if (!ws[ref]) ws[ref] = { v: "", t: 's' }
                     ws[ref].s = { border: borderStyle }
-                    if (C !== 2) ws[ref].s.alignment = { horizontal: "center" }
+                    ws[ref].s.alignment = { horizontal: "center", vertical: "center" }
+                    if (C === 2) ws[ref].s.alignment = { horizontal: "left", vertical: "center" } // Nama align left
                 }
             }
+
             // Col Widths
             ws["!cols"] = [
                 { wch: 5 }, { wch: 12 }, { wch: 30 },

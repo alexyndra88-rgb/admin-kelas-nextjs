@@ -26,6 +26,7 @@ interface SpecialAccount {
     username: string
     password?: string
     role: string
+    mapelDiampu?: string // For guru_mapel
 }
 
 interface MapelItem {
@@ -78,17 +79,24 @@ export default function PengaturanPage() {
                 }
                 if (specialRes.ok) {
                     const data = await specialRes.json()
-                    // Ensure we have both kepsek and pengawas
-                    const defaultAccounts: SpecialAccount[] = [
-                        { id: "", name: "", username: "", password: "", role: "kepsek" },
-                        { id: "", name: "", username: "", password: "", role: "pengawas" }
+                    // Maintain existing logic for Kepsek/Pengawas defaults
+                    const defaultRoles = [
+                        { role: "kepsek", name: "", username: "" },
+                        { role: "pengawas", name: "", username: "" }
                     ]
+
                     const existing = data || []
-                    const merged = defaultAccounts.map(def => {
+
+                    // Merge defaults for kepsek/pengawas
+                    const mergedDefaults = defaultRoles.map(def => {
                         const found = existing.find((e: SpecialAccount) => e.role === def.role)
-                        return found ? { ...found, password: "" } : def
+                        return found ? { ...found, password: "" } : { ...def, id: "", password: "", role: def.role }
                     })
-                    setSpecialAccounts(merged)
+
+                    // Add existing guru_mapel accounts
+                    const guruMapelAccounts = existing.filter((e: SpecialAccount) => e.role === "guru_mapel").map((acc: SpecialAccount) => ({ ...acc, password: "" }))
+
+                    setSpecialAccounts([...mergedDefaults, ...guruMapelAccounts])
                 }
             } catch {
                 console.error("Failed to fetch settings")
@@ -139,8 +147,13 @@ export default function PengaturanPage() {
         setWaliKelas(prev => prev.map(w => w.kelas === kelas ? { ...w, [field]: value } : w))
     }
 
-    const updateSpecialAccount = (role: string, field: keyof SpecialAccount, value: string) => {
-        setSpecialAccounts(prev => prev.map(a => a.role === role ? { ...a, [field]: value } : a))
+    const updateSpecialAccount = (idOrRole: string, field: keyof SpecialAccount, value: string) => {
+        // Update logic: identify by ID if exists (for guru_mapel often multiple), or role (for unique kepsek/pengawas)
+        setSpecialAccounts(prev => prev.map(a => {
+            if (a.id && a.id === idOrRole) return { ...a, [field]: value } // Match by ID
+            if (!a.id && a.role === idOrRole) return { ...a, [field]: value } // Match by Role (for new/singleton)
+            return a
+        }))
     }
 
     const handleSaveSpecial = async () => {
@@ -256,13 +269,13 @@ export default function PengaturanPage() {
                         👑
                     </div>
                     <div>
-                        <h2 className="text-xl font-bold text-[var(--foreground)]">Akun Kepala Sekolah & Pengawas</h2>
-                        <p className="text-sm text-[var(--accents-5)]">Kelola akun login untuk kepsek dan pengawas</p>
+                        <h2 className="text-xl font-bold text-[var(--foreground)]">Akun Kepala Sekolah, Pengawas & Guru Mapel</h2>
+                        <p className="text-sm text-[var(--accents-5)]">Kelola akun login untuk peran khusus</p>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {specialAccounts.map((account) => (
+                    {specialAccounts.filter(a => ["kepsek", "pengawas"].includes(a.role)).map((account) => (
                         <div key={account.role} className="border border-[var(--border)] rounded-xl p-6 bg-[var(--accents-1)]/30">
                             <div className="flex items-center gap-3 mb-6">
                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${account.role === "kepsek" ? "bg-emerald-100 text-emerald-600" : "bg-purple-100 text-purple-600"}`}>
@@ -301,11 +314,52 @@ export default function PengaturanPage() {
                             </div>
                         </div>
                     ))}
+
+                    {/* Guru Mapel List */}
+                    {specialAccounts.filter(a => a.role === "guru_mapel").map((account, idx) => (
+                        <div key={account.id || `gm-${idx}`} className="border border-[var(--border)] rounded-xl p-6 bg-[var(--accents-1)]/30">
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-lg">
+                                    🎓
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-base text-[var(--foreground)]">
+                                        Guru Mapel
+                                    </h3>
+                                    <p className="text-xs text-[var(--accents-5)]">Akses absensi & nilai semua kelas</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <MiniField
+                                    label="Nama Lengkap"
+                                    placeholder="Nama Lengkap"
+                                    value={account.name}
+                                    onChange={(v) => updateSpecialAccount(account.id, "name", v)}
+                                />
+                                <MiniField
+                                    label="Username"
+                                    placeholder="username"
+                                    value={account.username}
+                                    onChange={(v) => updateSpecialAccount(account.id, "username", v)}
+                                    icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>}
+                                />
+                                <MiniField
+                                    label="Password Baru"
+                                    placeholder="Kosongkan jika tidak diubah..."
+                                    type="password"
+                                    value={account.password || ""}
+                                    onChange={(v) => updateSpecialAccount(account.id, "password", v)}
+                                    icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg>}
+                                />
+                            </div>
+                        </div>
+                    ))}
                 </div>
 
                 <div className="mt-8 flex justify-end">
                     <button onClick={handleSaveSpecial} disabled={saving} className="h-10 px-6 bg-emerald-600 text-white rounded-md text-sm font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center gap-2">
-                        {saving ? "Menyimpan..." : "Simpan Akun Kepsek & Pengawas"}
+                        {saving ? "Menyimpan..." : "Simpan Akun Khusus"}
                     </button>
                 </div>
             </div>

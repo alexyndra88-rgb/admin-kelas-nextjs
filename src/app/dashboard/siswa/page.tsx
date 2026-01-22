@@ -13,6 +13,7 @@ interface Siswa {
     alamat?: string
     namaOrtu?: string
     noHp?: string
+    kelas?: number  // For multi-class import
 }
 
 export default function SiswaPage() {
@@ -27,6 +28,7 @@ export default function SiswaPage() {
     const [showImportModal, setShowImportModal] = useState(false)
     const [editingSiswa, setEditingSiswa] = useState<Siswa | null>(null)
     const [importData, setImportData] = useState<Siswa[]>([])
+    const [importAllClasses, setImportAllClasses] = useState(false)  // Multi-class import mode
 
     // Guru hanya bisa akses kelasnya sendiri
     useEffect(() => {
@@ -92,6 +94,41 @@ export default function SiswaPage() {
         toast.success("Data berhasil diexport!")
     }
 
+    const downloadTemplate = () => {
+        // Sample data untuk template import dengan kolom Kelas
+        const sampleData = [
+            { NIS: "0001", Nama: "Ahmad Zaki", "L/P": "L", Kelas: 1, Alamat: "Jl. Merdeka No. 1", "Nama Ortu": "Budi Santoso", "No HP": "081234567890" },
+            { NIS: "0002", Nama: "Siti Aminah", "L/P": "P", Kelas: 1, Alamat: "Jl. Sudirman No. 2", "Nama Ortu": "Ahmad Dahlan", "No HP": "081234567891" },
+            { NIS: "0003", Nama: "Rizky Pratama", "L/P": "L", Kelas: 2, Alamat: "Jl. Gatot Subroto No. 3", "Nama Ortu": "Joko Widodo", "No HP": "081234567892" },
+            { NIS: "0004", Nama: "Dewi Lestari", "L/P": "P", Kelas: 2, Alamat: "Jl. Asia Afrika No. 4", "Nama Ortu": "Sri Mulyani", "No HP": "081234567893" },
+            { NIS: "0005", Nama: "Budi Setiawan", "L/P": "L", Kelas: 3, Alamat: "Jl. Diponegoro No. 5", "Nama Ortu": "Susilo Bambang", "No HP": "081234567894" },
+            { NIS: "0006", Nama: "Rina Anggraini", "L/P": "P", Kelas: 3, Alamat: "Jl. Pahlawan No. 6", "Nama Ortu": "Megawati Soekarno", "No HP": "081234567895" },
+            { NIS: "0007", Nama: "Andi Firmansyah", "L/P": "L", Kelas: 4, Alamat: "Jl. Kartini No. 7", "Nama Ortu": "Habibie Ainun", "No HP": "081234567896" },
+            { NIS: "0008", Nama: "Maya Indah", "L/P": "P", Kelas: 4, Alamat: "Jl. Cut Nyak Dien No. 8", "Nama Ortu": "Gus Dur", "No HP": "081234567897" },
+            { NIS: "0009", Nama: "Fajar Nugroho", "L/P": "L", Kelas: 5, Alamat: "Jl. RA Kartini No. 9", "Nama Ortu": "Prabowo Subianto", "No HP": "081234567898" },
+            { NIS: "0010", Nama: "Putri Handayani", "L/P": "P", Kelas: 5, Alamat: "Jl. Veteran No. 10", "Nama Ortu": "Anies Baswedan", "No HP": "081234567899" },
+            { NIS: "0011", Nama: "Dimas Prasetyo", "L/P": "L", Kelas: 6, Alamat: "Jl. Pemuda No. 11", "Nama Ortu": "Ridwan Kamil", "No HP": "081234567800" },
+            { NIS: "0012", Nama: "Ayu Wulandari", "L/P": "P", Kelas: 6, Alamat: "Jl. Pelajar No. 12", "Nama Ortu": "Ganjar Pranowo", "No HP": "081234567801" },
+        ]
+        const ws = XLSX.utils.json_to_sheet(sampleData)
+
+        // Set column widths
+        ws['!cols'] = [
+            { wch: 8 },   // NIS
+            { wch: 25 },  // Nama
+            { wch: 5 },   // L/P
+            { wch: 7 },   // Kelas
+            { wch: 30 },  // Alamat
+            { wch: 25 },  // Nama Ortu
+            { wch: 15 },  // No HP
+        ]
+
+        const wb = XLSX.utils.book_new()
+        XLSX.utils.book_append_sheet(wb, ws, "Template Import Siswa")
+        XLSX.writeFile(wb, "Template_Import_Siswa_Semua_Kelas.xlsx")
+        toast.success("Template berhasil didownload!")
+    }
+
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!isAdmin) {
             toast.error("Hanya admin yang bisa import data")
@@ -122,7 +159,11 @@ export default function SiswaPage() {
                 alamat: findCol(["alamat"]),
                 ortu: findCol(["ortu", "orang tua", "wali"]),
                 hp: findCol(["hp", "telepon"]),
+                kelas: findCol(["kelas", "class", "tingkat"]),  // Detect class column
             }
+
+            // Check if file has class column for multi-class import
+            const hasKelasColumn = colMap.kelas !== -1
 
             if (colMap.nis === -1 || colMap.nama === -1) {
                 toast.error("Kolom NIS dan Nama harus ada!")
@@ -138,6 +179,15 @@ export default function SiswaPage() {
                 if (jk.includes("LAKI")) jk = "L"
                 if (jk.includes("PEREMPUAN")) jk = "P"
 
+                // Get kelas value if column exists
+                let studentKelas = kelas  // Default to currently selected class
+                if (hasKelasColumn) {
+                    const kelasVal = parseInt(String(row[colMap.kelas] || ""))
+                    if (kelasVal >= 1 && kelasVal <= 6) {
+                        studentKelas = kelasVal
+                    }
+                }
+
                 imported.push({
                     id: "",
                     nis: String(row[colMap.nis] || "").trim(),
@@ -146,10 +196,12 @@ export default function SiswaPage() {
                     alamat: colMap.alamat !== -1 ? String(row[colMap.alamat] || "") : "",
                     namaOrtu: colMap.ortu !== -1 ? String(row[colMap.ortu] || "") : "",
                     noHp: colMap.hp !== -1 ? String(row[colMap.hp] || "") : "",
+                    kelas: studentKelas,  // Include class for each student
                 })
             }
 
             setImportData(imported)
+            setImportAllClasses(hasKelasColumn)  // Set multi-class mode if kelas column exists
             setShowImportModal(true)
         }
         reader.readAsArrayBuffer(file)
@@ -160,7 +212,7 @@ export default function SiswaPage() {
             const res = await fetch("/api/siswa/import", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ students: importData, kelas, replace }),
+                body: JSON.stringify({ students: importData, kelas, replace, allClasses: importAllClasses }),
             })
             const result = await res.json()
             if (res.ok) {
@@ -214,6 +266,10 @@ export default function SiswaPage() {
                         <>
                             <button onClick={() => { setEditingSiswa(null); setShowModal(true) }} className="h-9 px-3 bg-black text-white rounded-md text-sm font-medium hover:bg-gray-800 transition-colors">
                                 + Tambah
+                            </button>
+                            <button onClick={downloadTemplate} className="h-9 px-3 bg-blue-50 border border-blue-200 text-blue-700 rounded-md text-sm font-medium hover:bg-blue-100 transition-colors flex items-center gap-1.5">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+                                Template
                             </button>
                             <label className="h-9 px-3 bg-white border border-[var(--border)] text-[var(--foreground)] rounded-md text-sm font-medium hover:bg-[var(--accents-1)] transition-colors cursor-pointer flex items-center gap-2">
                                 <span>Import Excel</span>
@@ -291,14 +347,39 @@ export default function SiswaPage() {
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
                     <div className="bg-white border border-[var(--border)] rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
                         <div className="p-4 border-b border-[var(--border)] flex justify-between items-center bg-[var(--accents-1)]">
-                            <h2 className="text-lg font-semibold">Preview Import ({importData.length} siswa)</h2>
+                            <div>
+                                <h2 className="text-lg font-semibold">Preview Import ({importData.length} siswa)</h2>
+                                {importAllClasses ? (
+                                    <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+                                        <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
+                                        Mode: Import ke Semua Kelas (1-6)
+                                    </p>
+                                ) : (
+                                    <p className="text-xs text-[var(--accents-5)] mt-1">Target: Kelas {kelas}</p>
+                                )}
+                            </div>
                             <button onClick={() => setShowImportModal(false)} className="text-[var(--accents-5)] hover:text-black">✕</button>
                         </div>
+                        {/* Summary per class for multi-class import */}
+                        {importAllClasses && (
+                            <div className="px-4 py-2 bg-blue-50 border-b border-blue-100 flex flex-wrap gap-2">
+                                {[1, 2, 3, 4, 5, 6].map(k => {
+                                    const count = importData.filter(s => s.kelas === k).length
+                                    if (count === 0) return null
+                                    return (
+                                        <span key={k} className="px-2 py-1 bg-white border border-blue-200 rounded text-xs font-medium text-blue-700">
+                                            Kelas {k}: {count} siswa
+                                        </span>
+                                    )
+                                })}
+                            </div>
+                        )}
                         <div className="p-0 overflow-auto flex-1">
                             <table className="w-full text-sm text-left">
                                 <thead className="bg-[var(--accents-1)] sticky top-0">
                                     <tr>
                                         <th className="px-4 py-2 font-medium text-[var(--accents-5)]">No</th>
+                                        {importAllClasses && <th className="px-4 py-2 font-medium text-[var(--accents-5)]">Kelas</th>}
                                         <th className="px-4 py-2 font-medium text-[var(--accents-5)]">NIS</th>
                                         <th className="px-4 py-2 font-medium text-[var(--accents-5)]">Nama</th>
                                         <th className="px-4 py-2 font-medium text-[var(--accents-5)]">L/P</th>
@@ -308,6 +389,7 @@ export default function SiswaPage() {
                                     {importData.map((s, i) => (
                                         <tr key={i}>
                                             <td className="px-4 py-2 text-[var(--accents-5)]">{i + 1}</td>
+                                            {importAllClasses && <td className="px-4 py-2 font-semibold text-blue-600">{s.kelas}</td>}
                                             <td className="px-4 py-2 font-mono text-xs">{s.nis}</td>
                                             <td className="px-4 py-2">{s.nama}</td>
                                             <td className="px-4 py-2">{s.jenisKelamin}</td>
@@ -319,7 +401,9 @@ export default function SiswaPage() {
                         <div className="p-4 border-t border-[var(--border)] flex justify-end gap-3 bg-[var(--accents-1)]">
                             <button onClick={() => setShowImportModal(false)} className="px-4 py-2 text-sm font-medium text-[var(--accents-6)] hover:text-black">Batal</button>
                             <button onClick={() => handleImport(false)} className="px-4 py-2 bg-black text-white rounded-md text-sm font-medium hover:bg-gray-800">Tambahkan</button>
-                            <button onClick={() => handleImport(true)} className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700">Ganti Semua</button>
+                            <button onClick={() => handleImport(true)} className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700">
+                                {importAllClasses ? "Ganti Semua Kelas" : "Ganti Semua"}
+                            </button>
                         </div>
                     </div>
                 </div>

@@ -134,22 +134,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                         {/* Class Selector - Only for Admin */}
                         <div className="mt-5">
-                            {isAdmin && (
-                                <div className="relative">
-                                    <select
-                                        value={currentKelas}
-                                        onChange={(e) => setCurrentKelas(Number(e.target.value))}
-                                        className="w-full bg-[var(--accents-1)] border border-[var(--border)] text-xs font-medium text-[var(--foreground)] rounded-md px-3 py-2 outline-none focus:ring-1 focus:ring-black appearance-none cursor-pointer"
-                                    >
-                                        {[1, 2, 3, 4, 5, 6].map((k) => (
-                                            <option key={k} value={k}>Kelas {k}</option>
-                                        ))}
-                                    </select>
-                                    <div className="absolute right-3 top-2 pointer-events-none text-[var(--accents-5)]">
-                                        <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                                    </div>
-                                </div>
-                            )}
+                            {/* Class Selector Removed for Admin as requested */}
                             {isGuru && (
                                 <div className="px-3 py-1.5 bg-[var(--accents-2)] rounded-md text-xs font-medium text-[var(--accents-6)] border border-[var(--border)] inline-block">
                                     Kelas {currentKelas}

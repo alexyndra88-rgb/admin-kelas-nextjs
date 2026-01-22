@@ -11,23 +11,31 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
         }
 
-        const { students, kelas, replace } = await request.json()
+        const { students, kelas, replace, allClasses } = await request.json()
 
         if (!Array.isArray(students) || students.length === 0) {
             return NextResponse.json({ error: "No data to import" }, { status: 400 })
         }
 
-        // If replace, delete existing students in this class
+        // If replace, delete existing students
         if (replace) {
-            await prisma.siswa.deleteMany({ where: { kelas: parseInt(kelas) } })
+            if (allClasses) {
+                // Delete all students from classes 1-6
+                await prisma.siswa.deleteMany({
+                    where: { kelas: { in: [1, 2, 3, 4, 5, 6] } }
+                })
+            } else {
+                // Delete only from selected class
+                await prisma.siswa.deleteMany({ where: { kelas: parseInt(kelas) } })
+            }
         }
 
-        // Prepare data
-        const data = students.map((s: { nis: string; nama: string; jenisKelamin: string; alamat?: string; namaOrtu?: string; noHp?: string }) => ({
+        // Prepare data - use each student's kelas if allClasses mode, otherwise use the kelas parameter
+        const data = students.map((s: { nis: string; nama: string; jenisKelamin: string; kelas?: number; alamat?: string; namaOrtu?: string; noHp?: string }) => ({
             nis: String(s.nis),
             nama: String(s.nama),
             jenisKelamin: String(s.jenisKelamin || "L").toUpperCase(),
-            kelas: parseInt(kelas),
+            kelas: allClasses && s.kelas ? s.kelas : parseInt(kelas),
             alamat: s.alamat || null,
             namaOrtu: s.namaOrtu || null,
             noHp: s.noHp || null,
@@ -39,8 +47,12 @@ export async function POST(request: NextRequest) {
             skipDuplicates: true,
         })
 
+        const message = allClasses
+            ? `${result.count} siswa berhasil diimport ke semua kelas`
+            : `${result.count} siswa berhasil diimport ke kelas ${kelas}`
+
         return NextResponse.json({
-            message: `${result.count} siswa berhasil diimport`,
+            message,
             count: result.count
         })
     } catch (error) {

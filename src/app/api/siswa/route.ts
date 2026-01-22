@@ -12,10 +12,15 @@ export async function GET(request: NextRequest) {
         }
 
         const { searchParams } = new URL(request.url)
-        const kelas = parseInt(searchParams.get("kelas") || "5")
+        const kelasParam = searchParams.get("kelas")
+
+        const whereClause: any = {}
+        if (kelasParam) {
+            whereClause.kelas = parseInt(kelasParam)
+        }
 
         const siswa = await prisma.siswa.findMany({
-            where: { kelas },
+            where: whereClause,
             orderBy: { nama: "asc" },
         })
 

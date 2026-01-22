@@ -70,7 +70,12 @@ export async function GET(request: NextRequest) {
                 if (counts[a.status as keyof typeof counts] !== undefined) {
                     counts[a.status as keyof typeof counts]++
                 }
-                const dateStr = a.tanggal.toISOString().split('T')[0]
+                // Use UTC components since DB stores dates as UTC midnight
+                const d = a.tanggal
+                const y = d.getUTCFullYear()
+                const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+                const day = String(d.getUTCDate()).padStart(2, '0')
+                const dateStr = `${y}-${m}-${day}`
                 dailyLogs[dateStr] = a.status
             })
 

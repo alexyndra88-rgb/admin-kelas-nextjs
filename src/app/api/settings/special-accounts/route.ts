@@ -14,13 +14,14 @@ export async function GET() {
 
         const accounts = await prisma.user.findMany({
             where: {
-                role: { in: ["kepsek", "pengawas"] }
+                role: { in: ["kepsek", "pengawas", "guru_mapel"] }
             },
             select: {
                 id: true,
                 name: true,
                 username: true,
                 role: true,
+                mapelDiampu: true, // Fetch mapel info for guru_mapel if needed
             },
             orderBy: { role: "asc" }
         })
@@ -43,10 +44,10 @@ export async function POST(request: NextRequest) {
         const { accounts } = await request.json()
 
         for (const account of accounts) {
-            const { id, name, username, password, role } = account
+            const { id, name, username, password, role, mapelDiampu } = account
 
             // Validate role
-            if (!["kepsek", "pengawas"].includes(role)) {
+            if (!["kepsek", "pengawas", "guru_mapel"].includes(role)) {
                 continue
             }
 

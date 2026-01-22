@@ -15,10 +15,9 @@ export const MAPEL_CONFIG: MapelConfig[] = [
     { name: "Penjas", classes: [1, 2, 3, 4, 5, 6] },
     { name: "SBdP", classes: [1, 2, 3, 4, 5, 6] },
     { name: "Bahasa Sunda", classes: [1, 2, 3, 4, 5, 6] },
-    { name: "B.Inggris", classes: [1, 2, 3, 4, 5, 6] },
     { name: "TdBA", classes: [1, 2, 3, 4, 5, 6] },
-    { name: "Koding", classes: [5, 6] },  // Only grades 5-6
-    { name: "KA", classes: [5, 6] },  // Only grades 5-6
+    { name: "B.Inggris", classes: [1, 2, 3, 4, 5, 6] },
+    { name: "Koding & KA", classes: [5, 6] },  // Merged Koding + KA for grades 5-6
     // Exclusive subjects - only for guru_mapel
     { name: "AKPK", classes: [1, 2, 3, 4, 5, 6], exclusive: true },
     { name: "PAI", classes: [1, 2, 3, 4, 5, 6], exclusive: true },

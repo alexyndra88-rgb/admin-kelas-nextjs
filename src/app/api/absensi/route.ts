@@ -19,10 +19,23 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: "Tanggal required" }, { status: 400 })
         }
 
+        // Parse YYYY-MM-DD and create UTC date boundaries
+        // This ensures consistent querying regardless of server timezone
+        const [year, month, day] = tanggal.split('-').map(Number)
+
+        // Start of day: 00:00:00.000 Z
+        const queryDateStart = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0))
+
+        // End of day: 23:59:59.999 Z
+        const queryDateEnd = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999))
+
         const absensi = await prisma.absensi.findMany({
             where: {
                 siswa: { kelas },
-                tanggal: new Date(tanggal),
+                tanggal: {
+                    gte: queryDateStart,
+                    lte: queryDateEnd
+                },
             },
             select: {
                 siswaId: true,
@@ -48,17 +61,22 @@ export async function POST(request: NextRequest) {
         const { entries } = await request.json()
 
         for (const entry of entries) {
+            // Strict Date Parsing: YYYY-MM-DD -> UTC Midnight
+            const dateStr = new Date(entry.tanggal).toISOString().split('T')[0]
+            const [y, m, d] = dateStr.split('-').map(Number)
+            const dateNormalized = new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0))
+
             await prisma.absensi.upsert({
                 where: {
                     siswaId_tanggal: {
                         siswaId: entry.siswaId,
-                        tanggal: new Date(entry.tanggal),
+                        tanggal: dateNormalized,
                     },
                 },
                 update: { status: entry.status },
                 create: {
                     siswaId: entry.siswaId,
-                    tanggal: new Date(entry.tanggal),
+                    tanggal: dateNormalized,
                     status: entry.status,
                 },
             })

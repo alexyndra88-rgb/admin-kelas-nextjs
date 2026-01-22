@@ -35,7 +35,9 @@ export const authOptions: NextAuthOptions = {
                     name: user.name,
                     username: user.username,
                     role: user.role,
-                    kelas: user.kelas
+                    kelas: user.kelas,
+                    fotoProfilUrl: user.fotoProfilUrl,
+                    mapelDiampu: user.mapelDiampu
                 }
             }
         })
@@ -47,6 +49,8 @@ export const authOptions: NextAuthOptions = {
                 token.username = user.username
                 token.role = user.role
                 token.kelas = user.kelas
+                token.fotoProfilUrl = user.fotoProfilUrl
+                token.mapelDiampu = user.mapelDiampu
             }
             return token
         },
@@ -56,6 +60,8 @@ export const authOptions: NextAuthOptions = {
                 session.user.username = token.username as string
                 session.user.role = token.role as string
                 session.user.kelas = token.kelas as number | null
+                session.user.fotoProfilUrl = token.fotoProfilUrl as string | null
+                session.user.mapelDiampu = token.mapelDiampu as string | null
             }
             return session
         }

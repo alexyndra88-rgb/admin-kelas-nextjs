@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useSession } from "next-auth/react"
 import toast from "react-hot-toast"
+import { getMapelByKelas } from "@/lib/mapelConfig"
 
 interface Jurnal {
     id: string
@@ -15,8 +16,6 @@ interface Jurnal {
     siswaAbsen?: string
 }
 
-const mapelList = ["Bahasa Indonesia", "Matematika", "IPA", "IPS", "PKn", "Agama", "Penjas", "SBdP", "Bahasa Sunda"]
-
 export default function JurnalPage() {
     const { data: session } = useSession()
     const isAdmin = session?.user?.role === "admin"
@@ -27,6 +26,9 @@ export default function JurnalPage() {
     const [kelas, setKelas] = useState(userKelas || 5)
     const [showModal, setShowModal] = useState(false)
     const [editingJurnal, setEditingJurnal] = useState<Jurnal | null>(null)
+
+    // Get subjects for current class
+    const mapelList = getMapelByKelas(kelas)
 
     // Lock kelas untuk guru
     useEffect(() => {

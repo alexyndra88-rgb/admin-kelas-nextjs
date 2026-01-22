@@ -9,14 +9,16 @@ datasource db {
 
 // User authentication
 model User {
-  id        String   @id @default(cuid())
-  username  String   @unique
-  password  String
-  name      String
-  role      String   @default("guru") // admin, guru
-  kelas     Int?     // 1-6, null for admin
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  username      String   @unique
+  password      String
+  name          String
+  role          String   @default("guru") // admin, guru, kepsek, pengawas, guru_mapel
+  kelas         Int?     // 1-6, null for admin/kepsek/pengawas/guru_mapel
+  mapelDiampu   String?  // For guru_mapel: comma-separated subjects (e.g., "AKPK" or "PAI")
+  fotoProfilUrl String?  // Profile photo URL
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 // School settings
@@ -89,4 +91,31 @@ model Jurnal {
   createdAt  DateTime @default(now())
 
   @@index([kelas, tanggal])
+}
+
+// Custom mapel names per class (overrides default config)
+model MapelKelas {
+  id        String @id @default(cuid())
+  kelas     Int
+  mapelCode String // Internal code (e.g., "B.Inggris")
+  namaMapel String // Display name that can be edited
+
+  @@unique([kelas, mapelCode])
+  @@index([kelas])
+}
+
+// Teacher daily attendance
+model AbsensiGuru {
+  id           String   @id @default(cuid())
+  userId       String
+  tanggal      DateTime @db.Date
+  waktuDatang  String?  // HH:MM format
+  ttdDatang    String?  @db.Text // Base64 signature image
+  waktuPulang  String?  // HH:MM format  
+  ttdPulang    String?  @db.Text // Base64 signature image
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, tanggal])
+  @@index([tanggal])
 }

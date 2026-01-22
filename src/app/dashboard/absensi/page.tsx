@@ -17,21 +17,23 @@ interface AbsensiData {
 export default function AbsensiPage() {
     const { data: session } = useSession()
     const isAdmin = session?.user?.role === "admin"
+    const isGuruMapel = session?.user?.role === "guru_mapel"
+    const canSelectKelas = isAdmin || isGuruMapel  // Admin dan guru_mapel bisa pilih kelas
     const userKelas = session?.user?.kelas
 
     const [siswa, setSiswa] = useState<Siswa[]>([])
     const [absensi, setAbsensi] = useState<AbsensiData>({})
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
-    const [kelas, setKelas] = useState(userKelas || 5)
+    const [kelas, setKelas] = useState(userKelas || 1)  // Default ke kelas 1 untuk guru_mapel
     const [tanggal, setTanggal] = useState(new Date().toISOString().split("T")[0])
 
-    // Lock kelas untuk guru
+    // Lock kelas untuk guru biasa saja
     useEffect(() => {
-        if (!isAdmin && userKelas) {
+        if (!canSelectKelas && userKelas) {
             setKelas(userKelas)
         }
-    }, [isAdmin, userKelas])
+    }, [canSelectKelas, userKelas])
 
     const fetchData = useCallback(async () => {
         try {
@@ -103,8 +105,8 @@ export default function AbsensiPage() {
                     <p className="text-sm text-[var(--accents-5)] mt-1">Kelola absensi harian siswa</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
-                    {/* Class Selector hanya untuk admin */}
-                    {isAdmin ? (
+                    {/* Class Selector untuk admin dan guru_mapel */}
+                    {canSelectKelas ? (
                         <div className="relative">
                             <select
                                 value={kelas}

@@ -20,6 +20,20 @@ interface WaliKelasWithAccount {
     password?: string
 }
 
+interface SpecialAccount {
+    id: string
+    name: string
+    username: string
+    password?: string
+    role: string
+}
+
+interface MapelItem {
+    code: string
+    name: string
+    isCustom: boolean
+}
+
 export default function PengaturanPage() {
     const { data: session } = useSession()
     const router = useRouter()
@@ -32,6 +46,9 @@ export default function PengaturanPage() {
         tahunAjaran: "2025/2026",
     })
     const [waliKelas, setWaliKelas] = useState<WaliKelasWithAccount[]>([])
+    const [specialAccounts, setSpecialAccounts] = useState<SpecialAccount[]>([])
+    const [mapelKelas, setMapelKelas] = useState<number>(1)
+    const [mapelList, setMapelList] = useState<MapelItem[]>([])
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
 
@@ -46,9 +63,10 @@ export default function PengaturanPage() {
     useEffect(() => {
         const fetchSettings = async () => {
             try {
-                const [schoolRes, waliRes] = await Promise.all([
+                const [schoolRes, waliRes, specialRes] = await Promise.all([
                     fetch("/api/settings/school"),
-                    fetch("/api/settings/wali-kelas")
+                    fetch("/api/settings/wali-kelas"),
+                    fetch("/api/settings/special-accounts")
                 ])
                 if (schoolRes.ok) {
                     const data = await schoolRes.json()
@@ -57,6 +75,20 @@ export default function PengaturanPage() {
                 if (waliRes.ok) {
                     const data = await waliRes.json()
                     setWaliKelas(data)
+                }
+                if (specialRes.ok) {
+                    const data = await specialRes.json()
+                    // Ensure we have both kepsek and pengawas
+                    const defaultAccounts: SpecialAccount[] = [
+                        { id: "", name: "", username: "", password: "", role: "kepsek" },
+                        { id: "", name: "", username: "", password: "", role: "pengawas" }
+                    ]
+                    const existing = data || []
+                    const merged = defaultAccounts.map(def => {
+                        const found = existing.find((e: SpecialAccount) => e.role === def.role)
+                        return found ? { ...found, password: "" } : def
+                    })
+                    setSpecialAccounts(merged)
                 }
             } catch {
                 console.error("Failed to fetch settings")
@@ -107,6 +139,67 @@ export default function PengaturanPage() {
         setWaliKelas(prev => prev.map(w => w.kelas === kelas ? { ...w, [field]: value } : w))
     }
 
+    const updateSpecialAccount = (role: string, field: keyof SpecialAccount, value: string) => {
+        setSpecialAccounts(prev => prev.map(a => a.role === role ? { ...a, [field]: value } : a))
+    }
+
+    const handleSaveSpecial = async () => {
+        if (!isAdmin) return
+        setSaving(true)
+        try {
+            const res = await fetch("/api/settings/special-accounts", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ accounts: specialAccounts }),
+            })
+            if (res.ok) toast.success("Akun Kepala Sekolah & Pengawas berhasil disimpan!")
+            else toast.error("Gagal menyimpan")
+        } catch {
+            toast.error("Terjadi kesalahan")
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    // Fetch mapel for selected class
+    const fetchMapelKelas = async (kelas: number) => {
+        try {
+            const res = await fetch(`/api/settings/mapel?kelas=${kelas}`)
+            if (res.ok) {
+                const data = await res.json()
+                setMapelList(data)
+            }
+        } catch {
+            console.error("Failed to fetch mapel")
+        }
+    }
+
+    useEffect(() => {
+        if (isAdmin) fetchMapelKelas(mapelKelas)
+    }, [isAdmin, mapelKelas])
+
+    const updateMapelName = (code: string, newName: string) => {
+        setMapelList(prev => prev.map(m => m.code === code ? { ...m, name: newName } : m))
+    }
+
+    const handleSaveMapel = async () => {
+        if (!isAdmin) return
+        setSaving(true)
+        try {
+            const res = await fetch("/api/settings/mapel", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ kelas: mapelKelas, mapelList }),
+            })
+            if (res.ok) toast.success(`Nama mapel Kelas ${mapelKelas} berhasil disimpan!`)
+            else toast.error("Gagal menyimpan")
+        } catch {
+            toast.error("Terjadi kesalahan")
+        } finally {
+            setSaving(false)
+        }
+    }
+
     if (!isAdmin) {
         return (
             <div className="flex items-center justify-center min-h-[50vh]">
@@ -152,6 +245,128 @@ export default function PengaturanPage() {
                 <div className="mt-8 flex justify-end">
                     <button onClick={handleSaveSchool} disabled={saving} className="h-10 px-6 bg-black text-white rounded-md text-sm font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 flex items-center gap-2">
                         {saving ? "Menyimpan..." : "Simpan Perubahan"}
+                    </button>
+                </div>
+            </div>
+
+            {/* Kepala Sekolah & Pengawas Accounts */}
+            <div className="turbo-card p-8">
+                <div className="flex items-center gap-4 mb-8 pb-6 border-b border-[var(--border)]">
+                    <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl border border-emerald-100">
+                        👑
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-bold text-[var(--foreground)]">Akun Kepala Sekolah & Pengawas</h2>
+                        <p className="text-sm text-[var(--accents-5)]">Kelola akun login untuk kepsek dan pengawas</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {specialAccounts.map((account) => (
+                        <div key={account.role} className="border border-[var(--border)] rounded-xl p-6 bg-[var(--accents-1)]/30">
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${account.role === "kepsek" ? "bg-emerald-100 text-emerald-600" : "bg-purple-100 text-purple-600"}`}>
+                                    {account.role === "kepsek" ? "🏫" : "👁️"}
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-base text-[var(--foreground)]">
+                                        {account.role === "kepsek" ? "Kepala Sekolah" : "Pengawas"}
+                                    </h3>
+                                    <p className="text-xs text-[var(--accents-5)]">Akses dashboard monitoring</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <MiniField
+                                    label="Nama Lengkap"
+                                    placeholder="Nama Lengkap"
+                                    value={account.name}
+                                    onChange={(v) => updateSpecialAccount(account.role, "name", v)}
+                                />
+                                <MiniField
+                                    label="Username"
+                                    placeholder="username"
+                                    value={account.username}
+                                    onChange={(v) => updateSpecialAccount(account.role, "username", v)}
+                                    icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>}
+                                />
+                                <MiniField
+                                    label="Password Baru"
+                                    placeholder="Kosongkan jika tidak diubah..."
+                                    type="password"
+                                    value={account.password || ""}
+                                    onChange={(v) => updateSpecialAccount(account.role, "password", v)}
+                                    icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg>}
+                                />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="mt-8 flex justify-end">
+                    <button onClick={handleSaveSpecial} disabled={saving} className="h-10 px-6 bg-emerald-600 text-white rounded-md text-sm font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center gap-2">
+                        {saving ? "Menyimpan..." : "Simpan Akun Kepsek & Pengawas"}
+                    </button>
+                </div>
+            </div>
+
+            {/* Mapel Configuration per Class */}
+            <div className="turbo-card p-8">
+                <div className="flex justify-between items-center mb-8 pb-6 border-b border-[var(--border)]">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center text-xl border border-amber-100">
+                            📚
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-bold text-[var(--foreground)]">Nama Mata Pelajaran per Kelas</h2>
+                            <p className="text-sm text-[var(--accents-5)]">Edit nama mapel untuk setiap kelas</p>
+                        </div>
+                    </div>
+                    <div className="relative">
+                        <select
+                            value={mapelKelas}
+                            onChange={(e) => setMapelKelas(Number(e.target.value))}
+                            className="h-10 pl-4 pr-10 bg-white border border-[var(--border)] rounded-lg text-sm font-medium text-[var(--foreground)] outline-none focus:ring-1 focus:ring-black cursor-pointer appearance-none"
+                        >
+                            {[1, 2, 3, 4, 5, 6].map((k) => (
+                                <option key={k} value={k}>Kelas {k}</option>
+                            ))}
+                        </select>
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--accents-5)]">
+                            <svg width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {mapelList.map((mapel) => (
+                        <div key={mapel.code} className={`border rounded-lg p-4 ${mapel.isCustom ? 'border-amber-300 bg-amber-50/50' : 'border-[var(--border)]'}`}>
+                            <label className="block text-xs font-semibold text-[var(--accents-5)] mb-1.5 uppercase tracking-wider">
+                                {mapel.code}
+                            </label>
+                            <input
+                                type="text"
+                                value={mapel.name}
+                                onChange={(e) => updateMapelName(mapel.code, e.target.value)}
+                                className="w-full px-3 py-2 bg-white border border-[var(--border)] rounded-md text-sm text-[var(--foreground)] outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                                placeholder={mapel.code}
+                            />
+                            {mapel.isCustom && (
+                                <span className="text-xs text-amber-600 mt-1 block">✏️ Custom</span>
+                            )}
+                        </div>
+                    ))}
+                </div>
+
+                {mapelList.length === 0 && (
+                    <div className="text-center text-[var(--accents-5)] py-8">
+                        Tidak ada mata pelajaran untuk kelas ini
+                    </div>
+                )}
+
+                <div className="mt-8 flex justify-end">
+                    <button onClick={handleSaveMapel} disabled={saving} className="h-10 px-6 bg-amber-600 text-white rounded-md text-sm font-medium hover:bg-amber-700 transition-colors disabled:opacity-50 flex items-center gap-2">
+                        {saving ? "Menyimpan..." : `Simpan Mapel Kelas ${mapelKelas}`}
                     </button>
                 </div>
             </div>

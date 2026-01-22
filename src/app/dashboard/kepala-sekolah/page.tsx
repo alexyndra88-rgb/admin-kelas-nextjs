@@ -29,7 +29,8 @@ export default function PrincipalDashboard() {
     const router = useRouter()
     const isKepsek = session?.user?.role === "kepsek"
     const isAdmin = session?.user?.role === "admin"
-    const canAccess = isKepsek || isAdmin
+    const isPengawas = session?.user?.role === "pengawas"
+    const canAccess = isKepsek || isAdmin || isPengawas
 
     const [overview, setOverview] = useState<Overview | null>(null)
     const [classSummary, setClassSummary] = useState<ClassSummary[]>([])

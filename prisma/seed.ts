@@ -47,11 +47,68 @@ async function main() {
         },
     })
 
+    // Create Kepala Sekolah account
+    await prisma.user.upsert({
+        where: { username: "kepsek" },
+        update: {},
+        create: {
+            username: "kepsek",
+            password: await bcrypt.hash("kepsek123", 10),
+            name: "Kepala Sekolah",
+            role: "kepsek",
+            kelas: null,
+        },
+    })
+
+    // Create Pengawas account
+    await prisma.user.upsert({
+        where: { username: "pengawas" },
+        update: {},
+        create: {
+            username: "pengawas",
+            password: await bcrypt.hash("pengawas123", 10),
+            name: "Pengawas Sekolah",
+            role: "pengawas",
+            kelas: null,
+        },
+    })
+
+    // Create Guru Mapel accounts (AKPK and PAI)
+    await prisma.user.upsert({
+        where: { username: "cecep" },
+        update: { role: "guru_mapel", mapelDiampu: "AKPK" },
+        create: {
+            username: "cecep",
+            password: await bcrypt.hash("guru123", 10),
+            name: "Cecep Rif'at Syarifudin, S.Pd",
+            role: "guru_mapel",
+            kelas: null,
+            mapelDiampu: "AKPK",
+        },
+    })
+
+    await prisma.user.upsert({
+        where: { username: "kuraesin" },
+        update: { role: "guru_mapel", mapelDiampu: "PAI" },
+        create: {
+            username: "kuraesin",
+            password: await bcrypt.hash("guru123", 10),
+            name: "Kuraesin, S.Pd.I",
+            role: "guru_mapel",
+            kelas: null,
+            mapelDiampu: "PAI",
+        },
+    })
+
     console.log("Seeding complete!")
     console.log("")
     console.log("=== Login Credentials ===")
-    console.log("Admin: username=admin, password=admin123")
-    console.log("Guru:  username=guru1-6, password=guru123")
+    console.log("Admin:    username=admin, password=admin123")
+    console.log("Guru:     username=guru1-6, password=guru123")
+    console.log("Kepsek:   username=kepsek, password=kepsek123")
+    console.log("Pengawas: username=pengawas, password=pengawas123")
+    console.log("Guru Mapel AKPK: username=cecep, password=guru123")
+    console.log("Guru Mapel PAI:  username=kuraesin, password=guru123")
 }
 
 main()

@@ -22,14 +22,15 @@ export default function DashboardPage() {
     const router = useRouter()
     const isAdmin = session?.user?.role === "admin"
     const isKepsek = session?.user?.role === "kepsek"
+    const isPengawas = session?.user?.role === "pengawas"
     const userKelas = session?.user?.kelas
 
-    // Redirect kepsek to their special dashboard
+    // Redirect kepsek and pengawas to their special dashboard
     useEffect(() => {
-        if (isKepsek) {
+        if (isKepsek || isPengawas) {
             router.push("/dashboard/kepala-sekolah")
         }
-    }, [isKepsek, router])
+    }, [isKepsek, isPengawas, router])
 
     const [schoolInfo, setSchoolInfo] = useState<SchoolInfo | null>(null)
     const [myWaliInfo, setMyWaliInfo] = useState<WaliKelas | null>(null)
@@ -63,18 +64,46 @@ export default function DashboardPage() {
                 // Fetch stats (siswa, absensi, jurnal)
                 if (userKelas || isAdmin) {
                     const kelasQuery = userKelas ? `?kelas=${userKelas}` : ""
-                    const [siswaRes, jurnalRes] = await Promise.all([
-                        fetch(`/api/siswa${kelasQuery}`),
-                        fetch(`/api/jurnal${kelasQuery}`)
-                    ])
+                    const today = new Date().toISOString().split("T")[0]
 
-                    if (siswaRes.ok) {
-                        const siswaData = await siswaRes.json()
-                        setStats(prev => ({ ...prev, totalSiswa: siswaData.length }))
+                    // For admin: fetch ALL students for total count
+                    const fetchPromises: Promise<Response | null>[] = [
+                        fetch(`/api/siswa${kelasQuery}`),
+                        fetch(`/api/jurnal${kelasQuery}`),
+                        userKelas ? fetch(`/api/absensi?kelas=${userKelas}&tanggal=${today}`) : Promise.resolve(null)
+                    ]
+
+                    // Admin gets total siswa from ALL classes
+                    if (isAdmin) {
+                        fetchPromises.push(fetch(`/api/siswa`)) // Fetch all students
                     }
-                    if (jurnalRes.ok) {
+
+                    const [siswaRes, jurnalRes, absensiRes, allSiswaRes] = await Promise.all(fetchPromises)
+
+                    if (siswaRes && siswaRes.ok) {
+                        const siswaData = await siswaRes.json()
+                        // For guru: show their class count, for admin: will be overwritten below
+                        if (!isAdmin) {
+                            setStats(prev => ({ ...prev, totalSiswa: siswaData.length }))
+                        }
+                    }
+
+                    // For admin: show total ALL students
+                    if (isAdmin && allSiswaRes && allSiswaRes.ok) {
+                        const allSiswaData = await allSiswaRes.json()
+                        setStats(prev => ({ ...prev, totalSiswa: allSiswaData.length }))
+                    }
+
+                    if (jurnalRes && jurnalRes.ok) {
                         const jurnalData = await jurnalRes.json()
                         setStats(prev => ({ ...prev, jurnal: jurnalData.length }))
+                    }
+                    // Today's attendance for real-time dashboard update
+                    if (absensiRes && absensiRes.ok) {
+                        const absensiData = await absensiRes.json()
+                        const hadirCount = absensiData.filter((a: { status: string }) => a.status === "H").length
+                        const tidakHadirCount = absensiData.filter((a: { status: string }) => a.status !== "H").length
+                        setStats(prev => ({ ...prev, hadir: hadirCount, tidakHadir: tidakHadirCount }))
                     }
                 }
             } catch (error) {

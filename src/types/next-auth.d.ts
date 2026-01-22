@@ -8,6 +8,8 @@ declare module "next-auth" {
             username: string
             role: string
             kelas: number | null
+            fotoProfilUrl: string | null
+            mapelDiampu: string | null
         } & DefaultSession["user"]
     }
 
@@ -16,6 +18,8 @@ declare module "next-auth" {
         username: string
         role: string
         kelas: number | null
+        fotoProfilUrl: string | null
+        mapelDiampu: string | null
     }
 }
 
@@ -25,5 +29,7 @@ declare module "next-auth/jwt" {
         username: string
         role: string
         kelas: number | null
+        fotoProfilUrl: string | null
+        mapelDiampu: string | null
     }
 }

@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { useSession } from "next-auth/react"
 import toast from "react-hot-toast"
+import { getMapelByKelas, isExclusiveMapel, getMapelForGuruMapel } from "@/lib/mapelConfig"
 
 interface Siswa {
     id: string
@@ -14,14 +15,15 @@ interface NilaiData {
     [studentId: string]: number
 }
 
-const mapelList = ["Bahasa Indonesia", "Matematika", "IPA", "IPS", "PKn", "Agama", "Penjas", "SBdP", "Bahasa Sunda"]
 const jenisNilaiList = ["UH1", "UH2", "UH3", "UTS", "UAS"]
 const KKM = 70
 
 export default function NilaiPage() {
     const { data: session } = useSession()
     const isAdmin = session?.user?.role === "admin"
+    const isGuruMapel = session?.user?.role === "guru_mapel"
     const userKelas = session?.user?.kelas
+    const userMapelDiampu = session?.user?.mapelDiampu
 
     const [siswa, setSiswa] = useState<Siswa[]>([])
     const [nilai, setNilai] = useState<NilaiData>({})
@@ -31,12 +33,28 @@ export default function NilaiPage() {
     const [mapel, setMapel] = useState("")
     const [jenisNilai, setJenisNilai] = useState("")
 
-    // Lock kelas untuk guru
+    // Get subjects for current class, filtered by role
+    const mapelList = useMemo(() => {
+        // Guru mapel: only their assigned subjects
+        if (isGuruMapel && userMapelDiampu) {
+            return getMapelForGuruMapel(userMapelDiampu)
+        }
+        // Admin: all subjects
+        if (isAdmin) {
+            return getMapelByKelas(kelas)
+        }
+        // Regular guru: all except exclusive subjects (AKPK, PAI)
+        return getMapelByKelas(kelas).filter(m => !isExclusiveMapel(m))
+    }, [kelas, isAdmin, isGuruMapel, userMapelDiampu])
+
+    const canSelectKelas = isAdmin || isGuruMapel  // Admin dan guru_mapel bisa pilih kelas
+
+    // Lock kelas untuk guru biasa saja
     useEffect(() => {
-        if (!isAdmin && userKelas) {
+        if (!canSelectKelas && userKelas) {
             setKelas(userKelas)
         }
-    }, [isAdmin, userKelas])
+    }, [canSelectKelas, userKelas])
 
     const fetchData = useCallback(async () => {
         if (!mapel || !jenisNilai) return
@@ -98,8 +116,8 @@ export default function NilaiPage() {
                     <p className="text-sm text-[var(--accents-5)] mt-1">Input penilaian siswa per mata pelajaran</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
-                    {/* Class Selector hanya untuk admin */}
-                    {isAdmin ? (
+                    {/* Class Selector untuk admin dan guru_mapel */}
+                    {canSelectKelas ? (
                         <div className="relative">
                             <select
                                 value={kelas}
@@ -205,8 +223,8 @@ export default function NilaiPage() {
                                             <td className="px-4 py-3 text-center">
                                                 {n !== undefined && (
                                                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${tuntas
-                                                            ? "bg-green-100 text-green-800 border border-green-200"
-                                                            : "bg-red-100 text-red-800 border border-red-200"
+                                                        ? "bg-green-100 text-green-800 border border-green-200"
+                                                        : "bg-red-100 text-red-800 border border-red-200"
                                                         }`}>
                                                         {tuntas ? "Tuntas" : "Belum Tuntas"}
                                                     </span>

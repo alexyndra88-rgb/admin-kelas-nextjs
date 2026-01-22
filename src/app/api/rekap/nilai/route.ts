@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
+import { getMapelByKelas } from "@/lib/mapelConfig"
 
-const mapelList = ["Bahasa Indonesia", "Matematika", "IPA", "IPS", "PKn", "Agama", "Penjas", "SBdP", "Bahasa Sunda"]
 const jenisNilaiList = ["UH1", "UH2", "UH3", "UTS", "UAS"]
 
 // GET rekap nilai
@@ -88,6 +88,9 @@ export async function GET(request: NextRequest) {
                 overallAverage,
             }
         })
+
+        // Get mapel list for this class
+        const mapelList = getMapelByKelas(kelas)
 
         return NextResponse.json({
             recap,

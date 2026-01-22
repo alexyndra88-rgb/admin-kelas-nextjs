@@ -20,6 +20,7 @@ const menuItems = [
     { href: "/dashboard/rekap-nilai", icon: "document-report", label: "Rekap Nilai" },
     { href: "/dashboard/kalender", icon: "calendar", label: "Kalender Akademik" },
     { href: "/dashboard/analitik-nilai", icon: "analytics", label: "Analitik Nilai" },
+    { href: "/dashboard/absensi-guru", icon: "user-check", label: "Daftar Hadir Guru", adminOnly: true },
     { href: "/dashboard/kepala-sekolah", icon: "school", label: "Monitoring Sekolah", kepsekOnly: true },
     { href: "/dashboard/pengaturan", icon: "cog", label: "Pengaturan", adminOnly: true },
 ]
@@ -39,6 +40,7 @@ function Icon({ name, className, strokeWidth = 2 }: { name: string; className?: 
         cog: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />,
         logout: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />,
         menu: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M4 6h16M4 12h16M4 18h16" />,
+        "user-check": <><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M16 11l2 2 4-4" /></>,
     }
     return (
         <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -77,7 +79,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const userRole = session.user.role
     const isAdmin = userRole === "admin"
     const isKepsek = userRole === "kepsek"
+    const isPengawas = userRole === "pengawas"
     const isGuru = userRole === "guru"
+    const isGuruMapel = userRole === "guru_mapel"
 
     // Function to check if menu item should be shown
     const shouldShowMenuItem = (item: typeof menuItems[0]) => {
@@ -86,11 +90,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             if ('kepsekOnly' in item && item.kepsekOnly) return false
             return true
         }
-        // Kepsek can see ONLY Monitoring Sekolah and Kalender Akademik
-        if (isKepsek) {
+        // Kepsek and Pengawas can see ONLY Monitoring Sekolah and Kalender Akademik
+        if (isKepsek || isPengawas) {
             return ["/dashboard/kepala-sekolah", "/dashboard/kalender"].includes(item.href)
         }
-        // Guru can see guruOnly and general items, not adminOnly or kepsekOnly
+        // Guru Mapel can see only limited menu: absensi, rekap-absensi, nilai, rekap-nilai, kalender
+        if (isGuruMapel) {
+            return [
+                "/dashboard",
+                "/dashboard/absensi",
+                "/dashboard/rekap-absensi",
+                "/dashboard/nilai",
+                "/dashboard/rekap-nilai",
+                "/dashboard/kalender"
+            ].includes(item.href)
+        }
+        // Guru (wali kelas) can see guruOnly and general items, not adminOnly or kepsekOnly
         if (isGuru) {
             if ('adminOnly' in item && item.adminOnly) return false
             if ('kepsekOnly' in item && item.kepsekOnly) return false
@@ -108,13 +123,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     {/* Header */}
                     <div className="p-5 border-b border-[var(--border)]">
                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center text-white font-bold">
-                                <Icon name="book" className="w-4 h-4" />
-                            </div>
+                            <img src="/logo-sekolah.png" alt="Logo" className="w-8 h-8 object-contain" />
                             <div>
                                 <h1 className="font-bold text-sm text-[var(--foreground)] tracking-tight">Andris4Edu</h1>
                                 <p className="text-[11px] text-[var(--accents-5)]">
-                                    {isKepsek ? "Kepala Sekolah" : isAdmin ? "Admin" : "Wali Kelas"}
+                                    {isKepsek ? "Kepala Sekolah" : isPengawas ? "Pengawas" : isAdmin ? "Admin" : "Wali Kelas"}
                                 </p>
                             </div>
                         </div>
@@ -145,6 +158,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             {isKepsek && (
                                 <div className="px-3 py-1.5 bg-emerald-50 rounded-md text-xs font-medium text-emerald-700 border border-emerald-200 inline-block">
                                     🏫 SDN 2 Nangerang
+                                </div>
+                            )}
+                            {isPengawas && (
+                                <div className="px-3 py-1.5 bg-purple-50 rounded-md text-xs font-medium text-purple-700 border border-purple-200 inline-block">
+                                    👁️ Pengawas Sekolah
                                 </div>
                             )}
                         </div>

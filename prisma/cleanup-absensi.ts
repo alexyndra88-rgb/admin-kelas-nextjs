@@ -8,7 +8,7 @@ async function main() {
 
     // 1. Get ALL records
     const allAbsensi = await prisma.absensi.findMany({
-        orderBy: { createdAt: 'desc' } // Keep the latest created
+        orderBy: { tanggal: 'desc' } // Keep the latest record
     })
 
     console.log(`Scanning ${allAbsensi.length} records...`)

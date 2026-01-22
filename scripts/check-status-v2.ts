@@ -40,9 +40,9 @@ async function main() {
 
     if (class5Attendance.length > uniquePids.size) {
         console.log('Duplicates detected in query result!')
-        const counts = {}
+        const counts: Record<string, number> = {}
         pids.forEach(p => counts[p] = (counts[p] || 0) + 1)
-        Object.entries(counts).filter(([k, v]) => v > 1).forEach(([k, v]) => {
+        Object.entries(counts).filter(([k, v]) => (v as number) > 1).forEach(([k, v]) => {
             console.log(`Student ${k} has ${v} records`)
             const recs = class5Attendance.filter(a => a.siswaId === k)
             recs.forEach(r => console.log(` - ${r.tanggal.toISOString()} (ID: ${r.id})`))

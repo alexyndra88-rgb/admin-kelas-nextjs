@@ -71,7 +71,7 @@ async function main() {
 
     console.log(`Class 5 Attendance Count: ${class5Attendance.length}`)
 
-    const c5Counts = {}
+    const c5Counts: Record<string, number> = {}
     class5Attendance.forEach(a => {
         const key = `${a.siswaId}_${a.tanggal.toISOString()}`
         c5Counts[key] = (c5Counts[key] || 0) + 1
@@ -86,12 +86,12 @@ async function main() {
     })
 
     // Group by Student ID to find duplicates in this range
-    const studentCounts = {}
+    const studentCounts: Record<string, number> = {}
     attendanceToday.forEach(a => {
         studentCounts[a.siswaId] = (studentCounts[a.siswaId] || 0) + 1
     })
 
-    const duplicates = Object.entries(studentCounts).filter(([id, count]) => count > 1)
+    const duplicates = Object.entries(studentCounts).filter(([id, count]) => (count as number) > 1)
     console.log(`Students with >1 record today: ${duplicates.length}`)
 
     if (duplicates.length > 0) {

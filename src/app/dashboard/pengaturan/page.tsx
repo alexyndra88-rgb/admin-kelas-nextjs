@@ -28,6 +28,7 @@ interface SpecialAccount {
     role: string
     mapelDiampu?: string // For guru_mapel
     nip?: string
+    kelas?: number | null
 }
 
 interface MapelItem {
@@ -94,10 +95,12 @@ export default function PengaturanPage() {
                         return found ? { ...found, password: "" } : { ...def, id: "", password: "", role: def.role }
                     })
 
-                    // Add existing guru_mapel accounts
-                    const guruMapelAccounts = existing.filter((e: SpecialAccount) => e.role === "guru_mapel").map((acc: SpecialAccount) => ({ ...acc, password: "" }))
+                    // Add existing guru_mapel accounts AND guru without class (Staff/Penjaga)
+                    const otherAccounts = existing.filter((e: SpecialAccount) =>
+                        e.role === "guru_mapel" || (e.role === "guru" && !e.kelas)
+                    ).map((acc: SpecialAccount) => ({ ...acc, password: "" }))
 
-                    setSpecialAccounts([...mergedDefaults, ...guruMapelAccounts])
+                    setSpecialAccounts([...mergedDefaults, ...otherAccounts])
                 }
             } catch {
                 console.error("Failed to fetch settings")
@@ -316,18 +319,20 @@ export default function PengaturanPage() {
                         </div>
                     ))}
 
-                    {/* Guru Mapel List */}
-                    {specialAccounts.filter(a => a.role === "guru_mapel").map((account, idx) => (
+                    {/* Guru Mapel & Staff List */}
+                    {specialAccounts.filter(a => a.role === "guru_mapel" || (a.role === "guru" && !a.kelas)).map((account, idx) => (
                         <div key={account.id || `gm-${idx}`} className="border border-[var(--border)] rounded-xl p-6 bg-[var(--accents-1)]/30">
                             <div className="flex items-center gap-3 mb-6">
-                                <div className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-lg">
-                                    🎓
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${account.role === 'guru_mapel' ? 'bg-orange-100 text-orange-600' : 'bg-pink-100 text-pink-600'}`}>
+                                    {account.role === 'guru_mapel' ? '🎓' : '👤'}
                                 </div>
                                 <div>
                                     <h3 className="font-bold text-base text-[var(--foreground)]">
-                                        Guru Mapel
+                                        {account.role === 'guru_mapel' ? 'Guru Mapel' : 'Guru/Staff Lainnya'}
                                     </h3>
-                                    <p className="text-xs text-[var(--accents-5)]">Akses absensi & nilai semua kelas</p>
+                                    <p className="text-xs text-[var(--accents-5)]">
+                                        {account.role === 'guru_mapel' ? 'Akses absensi & nilai semua kelas' : 'Akses absensi & jadwal piket'}
+                                    </p>
                                 </div>
                             </div>
 
@@ -336,19 +341,19 @@ export default function PengaturanPage() {
                                     label="Nama Lengkap"
                                     placeholder="Nama Lengkap"
                                     value={account.name}
-                                    onChange={(v) => updateSpecialAccount(account.id, "name", v)}
+                                    onChange={(v) => updateSpecialAccount(account.id || "", "name", v)}
                                 />
                                 <MiniField
-                                    label="NIP"
-                                    placeholder="NIP / NUPTK"
-                                    value={account.nip || ""}
-                                    onChange={(v) => updateSpecialAccount(account.id, "nip", v)}
+                                    label={account.role === 'guru_mapel' ? "Mapel Diampu / NIP" : "NIP / Jabatan"}
+                                    placeholder="NIP / Keterangan"
+                                    value={account.nip || account.mapelDiampu || ""}
+                                    onChange={(v) => updateSpecialAccount(account.id || "", "nip", v)}
                                 />
                                 <MiniField
                                     label="Username"
                                     placeholder="username"
                                     value={account.username}
-                                    onChange={(v) => updateSpecialAccount(account.id, "username", v)}
+                                    onChange={(v) => updateSpecialAccount(account.id || "", "username", v)}
                                     icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>}
                                 />
                                 <MiniField
@@ -356,7 +361,7 @@ export default function PengaturanPage() {
                                     placeholder="Kosongkan jika tidak diubah..."
                                     type="password"
                                     value={account.password || ""}
-                                    onChange={(v) => updateSpecialAccount(account.id, "password", v)}
+                                    onChange={(v) => updateSpecialAccount(account.id || "", "password", v)}
                                     icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg>}
                                 />
                             </div>

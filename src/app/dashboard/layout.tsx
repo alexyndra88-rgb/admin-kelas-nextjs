@@ -20,6 +20,8 @@ const menuItems = [
     { href: "/dashboard/rekap-nilai", icon: "document-report", label: "Rekap Nilai" },
     { href: "/dashboard/kalender", icon: "calendar", label: "Kalender Akademik" },
     { href: "/dashboard/analitik-nilai", icon: "analytics", label: "Analitik Nilai" },
+    { href: "/dashboard/perpustakaan", icon: "library", label: "Perpustakaan", allRoles: true },
+    { href: "/dashboard/aset", icon: "cube", label: "Data Aset", allRoles: true },
     { href: "/dashboard/absensi-guru", icon: "user-check", label: "Daftar Hadir Guru", adminOnly: true },
     { href: "/dashboard/kepala-sekolah", icon: "school", label: "Monitoring Sekolah", kepsekOnly: true },
     { href: "/dashboard/pengaturan", icon: "cog", label: "Pengaturan", adminOnly: true },
@@ -41,6 +43,8 @@ function Icon({ name, className, strokeWidth = 2 }: { name: string; className?: 
         logout: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />,
         menu: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M4 6h16M4 12h16M4 18h16" />,
         "user-check": <><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M16 11l2 2 4-4" /></>,
+        library: <><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" /></>,
+        cube: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />,
     }
     return (
         <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -85,6 +89,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     // Function to check if menu item should be shown
     const shouldShowMenuItem = (item: typeof menuItems[0]) => {
+        // Items with allRoles are visible to everyone
+        if ('allRoles' in item && item.allRoles) return true
+
         // Admin can see everything except kepsekOnly
         if (isAdmin) {
             if ('kepsekOnly' in item && item.kepsekOnly) return false

@@ -120,3 +120,39 @@ model AbsensiGuru {
   @@unique([userId, tanggal])
   @@index([tanggal])
 }
+
+// Buku perpustakaan
+model Buku {
+  id          String   @id @default(cuid())
+  judul       String
+  penulis     String
+  penerbit    String?
+  tahunTerbit Int?
+  isbn        String?
+  kategori    String   // Fiksi, Non-Fiksi, Pelajaran, Referensi, Majalah
+  kelas       Int?     // 1-6 untuk buku pelajaran SD
+  jumlahCopy  Int      @default(1)
+  lokasi      String?  // Rak/Lokasi buku
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Aset sekolah - Kartu Inventaris Barang (KIB)
+model Aset {
+  id               String    @id @default(cuid())
+  namaAset         String
+  kib              String    // A=Tanah, B=Peralatan/Mesin, C=Gedung, D=Jalan/Jaringan, E=Aset Lainnya
+  kategori         String    // Sub-kategori: Perabot, Elektronik, Alat Olahraga, dll
+  jumlah           Int       @default(1)
+  kondisi          String    // Baik, Rusak Ringan, Rusak Berat
+  lokasi           String?   // Ruang/lokasi penyimpanan
+  tahunPerolehan   Int       // Tahun barang diperoleh
+  sumberDana       String    // BOS Reguler, BOS Kinerja, Hibah Pemda, Komite
+  hargaPerolehan   Float     // Harga beli awal (untuk ARKAS/SIPD)
+  nilaiPerUnit     Float?    // Nilai per unit saat ini (opsional)
+  buktiKepemilikan String?   // No. sertifikat/faktur/nota
+  tanggalBeli      DateTime? @db.Date
+  keterangan       String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}

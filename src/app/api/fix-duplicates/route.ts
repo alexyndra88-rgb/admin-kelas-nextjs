@@ -44,6 +44,18 @@ export async function GET() {
             }
         }
 
+        // 3. Delete Dummy Guru (guru1 - guru6)
+        const dummyGurus = await prisma.user.findMany({
+            where: {
+                username: { in: ["guru1", "guru2", "guru3", "guru4", "guru5", "guru6"] }
+            }
+        })
+
+        for (const dummy of dummyGurus) {
+            await prisma.user.delete({ where: { id: dummy.id } })
+            deletedUsers.push(`Deleted Dummy: ${dummy.name} (${dummy.username})`)
+        }
+
         return NextResponse.json({
             success: true,
             deleted: deletedUsers,

@@ -221,8 +221,8 @@ export default function RekapAbsensiPage() {
                     const isWeekend = dateDate.getDay() === 0 || dateDate.getDay() === 6
                     const isHoliday = meta.holidaysInPeriod && meta.holidaysInPeriod.includes(dateStr)
                     if (isWeekend || isHoliday) {
-                        ws[ref].s.fill = { fgColor: { rgb: "FFCCCC" } }
-                        ws[ref].s.font = { bold: true, color: { rgb: "FF0000" } }
+                        ws[ref].s.fill = { fgColor: { rgb: "D99694" } }
+                        ws[ref].s.font = { bold: true, color: { rgb: "000000" } }
                     }
                 }
             }
@@ -250,8 +250,8 @@ export default function RekapAbsensiPage() {
                         const isHoliday = meta.holidaysInPeriod && meta.holidaysInPeriod.includes(dateStr)
                         if (isWeekend || isHoliday) {
                             ws[ref].v = "X"
-                            ws[ref].s.fill = { fgColor: { rgb: "FFCCCC" } }
-                            ws[ref].s.font = { color: { rgb: "FF0000" } }
+                            ws[ref].s.fill = { fgColor: { rgb: "D99694" } }
+                            ws[ref].s.font = { color: { rgb: "000000" }, bold: true }
                         }
                     }
                 }

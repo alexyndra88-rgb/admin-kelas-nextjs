@@ -21,7 +21,8 @@ export async function GET() {
                 name: true,
                 username: true,
                 role: true,
-                mapelDiampu: true, // Fetch mapel info for guru_mapel if needed
+                mapelDiampu: true,
+                nip: true
             },
             orderBy: { role: "asc" }
         })
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
         const { accounts } = await request.json()
 
         for (const account of accounts) {
-            const { id, name, username, password, role, mapelDiampu } = account
+            const { id, name, username, password, role, mapelDiampu, nip } = account
 
             // Validate role
             if (!["kepsek", "pengawas", "guru_mapel"].includes(role)) {
@@ -53,9 +54,10 @@ export async function POST(request: NextRequest) {
 
             if (id) {
                 // Update existing account
-                const updateData: { name: string; username: string; password?: string } = {
+                const updateData: { name: string; username: string; password?: string; nip?: string } = {
                     name,
                     username,
+                    nip
                 }
                 if (password && password.trim() !== "") {
                     updateData.password = await bcrypt.hash(password, 10)
@@ -73,6 +75,7 @@ export async function POST(request: NextRequest) {
                         username,
                         password: hashedPassword,
                         role,
+                        nip
                     },
                 })
             }

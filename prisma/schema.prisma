@@ -13,6 +13,7 @@ model User {
   username      String   @unique
   password      String
   name          String
+  nip           String?  // NIP or NIPTK
   role          String   @default("guru") // admin, guru, kepsek, pengawas, guru_mapel
   kelas         Int?     // 1-6, null for admin/kepsek/pengawas/guru_mapel
   mapelDiampu   String?  // For guru_mapel: comma-separated subjects (e.g., "AKPK" or "PAI")

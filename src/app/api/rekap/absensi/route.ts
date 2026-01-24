@@ -102,7 +102,16 @@ export async function GET(request: NextRequest) {
         // Get list of holidays in the period for reference
         const holidaysInPeriod = SCHOOL_CALENDAR_2025_2026.holidays.filter(h => {
             const hDate = new Date(h)
-            return hDate >= startDate && hDate <= endDate
+            if (type === "month") {
+                // Exact match for month and year
+                return hDate.getFullYear() === year && hDate.getMonth() === month
+            } else {
+                // For semester, ensure we include the full end date
+                // Create a new date for end of day comparison
+                const endOfDay = new Date(endDate)
+                endOfDay.setHours(23, 59, 59, 999)
+                return hDate >= startDate && hDate <= endOfDay
+            }
         })
 
         return NextResponse.json({

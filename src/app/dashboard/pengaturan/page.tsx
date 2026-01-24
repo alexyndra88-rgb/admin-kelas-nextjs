@@ -27,6 +27,7 @@ interface SpecialAccount {
     password?: string
     role: string
     mapelDiampu?: string // For guru_mapel
+    nip?: string
 }
 
 interface MapelItem {
@@ -294,13 +295,13 @@ export default function PengaturanPage() {
                                     label="Nama Lengkap"
                                     placeholder="Nama Lengkap"
                                     value={account.name}
-                                    onChange={(v) => updateSpecialAccount(account.role, "name", v)}
+                                    onChange={(v) => updateSpecialAccount(account.id || account.role, "name", v)}
                                 />
                                 <MiniField
                                     label="Username"
                                     placeholder="username"
                                     value={account.username}
-                                    onChange={(v) => updateSpecialAccount(account.role, "username", v)}
+                                    onChange={(v) => updateSpecialAccount(account.id || account.role, "username", v)}
                                     icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>}
                                 />
                                 <MiniField
@@ -308,7 +309,7 @@ export default function PengaturanPage() {
                                     placeholder="Kosongkan jika tidak diubah..."
                                     type="password"
                                     value={account.password || ""}
-                                    onChange={(v) => updateSpecialAccount(account.role, "password", v)}
+                                    onChange={(v) => updateSpecialAccount(account.id || account.role, "password", v)}
                                     icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg>}
                                 />
                             </div>
@@ -336,6 +337,12 @@ export default function PengaturanPage() {
                                     placeholder="Nama Lengkap"
                                     value={account.name}
                                     onChange={(v) => updateSpecialAccount(account.id, "name", v)}
+                                />
+                                <MiniField
+                                    label="NIP"
+                                    placeholder="NIP / NUPTK"
+                                    value={account.nip || ""}
+                                    onChange={(v) => updateSpecialAccount(account.id, "nip", v)}
                                 />
                                 <MiniField
                                     label="Username"

@@ -20,12 +20,23 @@ interface Teacher {
     role: string
 }
 
+
+function getRoleLabel(teacher: Teacher) {
+    if (teacher.name.toLowerCase().includes("holid")) return "Penjaga Sekolah"
+    if (teacher.role === "admin") return "Operator"
+    if (teacher.role === "kepsek") return "Kepala Sekolah"
+    if (teacher.role === "pengawas") return "Pengawas"
+    if (teacher.role === "guru_mapel") return "Guru Mapel"
+    return "Wali Kelas"
+}
+
 export default function AbsensiGuruPage() {
     const { data: session } = useSession()
     const router = useRouter()
     const isAdmin = session?.user?.role === "admin"
 
     const [tanggal, setTanggal] = useState(new Date().toISOString().split("T")[0])
+    const [bulan, setBulan] = useState(new Date().toISOString().slice(0, 7))
     const [teachers, setTeachers] = useState<Teacher[]>([])
     const [attendance, setAttendance] = useState<TeacherAttendance[]>([])
     const [loading, setLoading] = useState(true)
@@ -45,13 +56,46 @@ export default function AbsensiGuruPage() {
         try {
             setLoading(true)
             const [teachersRes, attendanceRes] = await Promise.all([
-                fetch("/api/users?role=guru,guru_mapel"),
+                fetch("/api/users?role=guru,guru_mapel,kepsek,admin"),
                 fetch(`/api/absensi-guru?tanggal=${tanggal}`)
             ])
 
             if (teachersRes.ok) {
                 const data = await teachersRes.json()
-                setTeachers(data)
+
+                // Custom sort order requested by user
+                const PRIORITY_NAMES = [
+                    "Ujang", // Kepala Sekolah
+                    "Kuraesin",
+                    "Kurnia", // Matches Kurnia Ningsih
+                    "Endang Hermawan",
+                    "Niken Fatmawati",
+                    "Ade Setiawati",
+                    "Andris Hadiansyah",
+                    "Yani Herfiana",
+                    "Cecep Rif'at",
+                    "Holid Ahsanudin",
+                    "Sarah Salsabila"
+                ];
+
+                const sortedData = data.sort((a: Teacher, b: Teacher) => {
+                    const getIndex = (name: string) => {
+                        return PRIORITY_NAMES.findIndex(p =>
+                            name.toLowerCase().includes(p.toLowerCase()) ||
+                            p.toLowerCase().includes(name.toLowerCase())
+                        );
+                    };
+
+                    const indexA = getIndex(a.name);
+                    const indexB = getIndex(b.name);
+
+                    if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+                    if (indexA !== -1) return -1;
+                    if (indexB !== -1) return 1;
+                    return a.name.localeCompare(b.name);
+                });
+
+                setTeachers(sortedData)
             }
 
             if (attendanceRes.ok) {
@@ -105,7 +149,7 @@ export default function AbsensiGuruPage() {
         }
     }
 
-    const handleExportExcel = async () => {
+    const handleExportDaily = async () => {
         try {
             const res = await fetch("/api/absensi-guru/export", {
                 method: "POST",
@@ -120,7 +164,31 @@ export default function AbsensiGuruPage() {
                 a.download = `absensi-guru-${tanggal}.xlsx`
                 a.click()
                 window.URL.revokeObjectURL(url)
-                toast.success("Excel berhasil diunduh!")
+                toast.success("Excel Harian berhasil diunduh!")
+            } else {
+                toast.error("Gagal export Excel")
+            }
+        } catch {
+            toast.error("Terjadi kesalahan")
+        }
+    }
+
+    const handleExportMonthly = async () => {
+        try {
+            const res = await fetch("/api/absensi-guru/export", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ bulan, type: "monthly" }),
+            })
+            if (res.ok) {
+                const blob = await res.blob()
+                const url = window.URL.createObjectURL(blob)
+                const a = document.createElement("a")
+                a.href = url
+                a.download = `rekap-absensi-${bulan}.xlsx`
+                a.click()
+                window.URL.revokeObjectURL(url)
+                toast.success("Excel Bulanan berhasil diunduh!")
             } else {
                 toast.error("Gagal export Excel")
             }
@@ -156,19 +224,40 @@ export default function AbsensiGuruPage() {
                     <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">Daftar Hadir Guru</h1>
                     <p className="text-sm text-[var(--accents-5)] mt-1">Absensi harian guru dan staff pengajar</p>
                 </div>
-                <div className="flex items-center gap-3">
-                    <input
-                        type="date"
-                        value={tanggal}
-                        onChange={(e) => setTanggal(e.target.value)}
-                        className="h-9 px-3 bg-white border border-[var(--border)] rounded-md text-sm text-[var(--foreground)] outline-none focus:ring-1 focus:ring-black"
-                    />
-                    <button
-                        onClick={handleExportExcel}
-                        className="h-9 px-4 bg-emerald-600 text-white rounded-md text-sm font-medium hover:bg-emerald-700 transition-colors flex items-center gap-2"
-                    >
-                        📥 Export Excel
-                    </button>
+                <div className="flex flex-col sm:flex-row items-end sm:items-center gap-4">
+                    {/* Harian */}
+                    <div className="flex items-center gap-2 p-1 border border-[var(--border)] rounded-md bg-[var(--accents-1)]/30">
+                        <input
+                            type="date"
+                            value={tanggal}
+                            onChange={(e) => setTanggal(e.target.value)}
+                            className="h-8 px-2 bg-transparent text-sm text-[var(--foreground)] outline-none w-32 cursor-pointer"
+                        />
+                        <button
+                            onClick={handleExportDaily}
+                            className="h-8 px-3 bg-black text-white rounded text-xs font-medium hover:bg-gray-800 transition-colors"
+                            title="Download Laporan Harian"
+                        >
+                            Harian
+                        </button>
+                    </div>
+
+                    {/* Bulanan */}
+                    <div className="flex items-center gap-2 p-1 border border-[var(--border)] rounded-md bg-[var(--accents-1)]/30">
+                        <input
+                            type="month"
+                            value={bulan}
+                            onChange={(e) => setBulan(e.target.value)}
+                            className="h-8 px-2 bg-transparent text-sm text-[var(--foreground)] outline-none w-32 cursor-pointer"
+                        />
+                        <button
+                            onClick={handleExportMonthly}
+                            className="h-8 px-3 bg-emerald-600 text-white rounded text-xs font-medium hover:bg-emerald-700 transition-colors"
+                            title="Download Rekap Bulanan"
+                        >
+                            Bulanan
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -195,7 +284,7 @@ export default function AbsensiGuruPage() {
                                         <td className="px-4 py-3">
                                             <div className="font-medium text-[var(--foreground)]">{teacher.name}</div>
                                             <div className="text-xs text-[var(--accents-5)]">
-                                                {teacher.role === "guru_mapel" ? "Guru Mapel" : "Wali Kelas"}
+                                                {getRoleLabel(teacher)}
                                             </div>
                                         </td>
                                         <td className="px-4 py-3 text-center">
@@ -210,8 +299,8 @@ export default function AbsensiGuruPage() {
                                             <button
                                                 onClick={() => setActiveSignature({ userId: teacher.id, type: "datang" })}
                                                 className={`h-8 px-3 rounded text-sm font-medium transition-colors ${att?.ttdDatang
-                                                        ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
-                                                        : "bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-200"
+                                                    ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                                                    : "bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-200"
                                                     }`}
                                             >
                                                 {att?.ttdDatang ? "✓ Sudah" : "Tanda Tangan"}
@@ -229,8 +318,8 @@ export default function AbsensiGuruPage() {
                                             <button
                                                 onClick={() => setActiveSignature({ userId: teacher.id, type: "pulang" })}
                                                 className={`h-8 px-3 rounded text-sm font-medium transition-colors ${att?.ttdPulang
-                                                        ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
-                                                        : "bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-200"
+                                                    ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                                                    : "bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-200"
                                                     }`}
                                             >
                                                 {att?.ttdPulang ? "✓ Sudah" : "Tanda Tangan"}

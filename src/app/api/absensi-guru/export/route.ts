@@ -35,14 +35,14 @@ export async function POST(request: NextRequest) {
             "Ujang",
             "Kuraesin",
             "Kurnia",
-            "Endang Hermawan",
-            "Niken Fatmawati",
-            "Ade Setiawati",
-            "Andris Hadiansyah",
-            "Yani Herfiana",
-            "Cecep Rif'at",
-            "Holid Ahsanudin",
-            "Sarah Salsabila"
+            "Endang",
+            "Niken",
+            "Ade",
+            "Andris",
+            "Yani",
+            "Cecep",
+            "Holid",
+            "Sarah"
         ];
 
         const teachers = teachersRaw.sort((a, b) => {

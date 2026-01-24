@@ -47,16 +47,47 @@ async function main() {
         },
     })
 
-    // Create Kepala Sekolah account
+    // Update Kepala Sekolah account with real name
     await prisma.user.upsert({
         where: { username: "kepsek" },
-        update: {},
+        update: { name: "H. Ujang Ma'Mun, S.Pd.I." },
         create: {
             username: "kepsek",
             password: await bcrypt.hash("kepsek123", 10),
-            name: "Kepala Sekolah",
+            name: "H. Ujang Ma'Mun, S.Pd.I.",
             role: "kepsek",
             kelas: null,
+        },
+    })
+
+    // Create Penjaga Sekolah (Holid Ahsanudin)
+    // Using guru role but without class assignment, or we could add a 'staff' role later?
+    // For now assuming 'guru' role so they appear in lists, or 'tendik' if system supports.
+    // Based on user request context, they should appear in Guru Attendance list.
+    await prisma.user.upsert({
+        where: { username: "198208062025211095" },
+        update: {},
+        create: {
+            username: "198208062025211095",
+            password: await bcrypt.hash("198208062025211095", 10),
+            name: "Holid Ahsanudin",
+            role: "guru", // Using 'guru' so they appear in attendance list for now
+            kelas: null,
+            nip: "198208062025211095"
+        },
+    })
+
+    // Create Operator (Yani Herfiyana Apriyani, S.E)
+    await prisma.user.upsert({
+        where: { username: "199204262025212065" },
+        update: {},
+        create: {
+            username: "199204262025212065",
+            password: await bcrypt.hash("199204262025212065", 10),
+            name: "Yani Herfiyana Apriyani, S.E",
+            role: "guru", // Using 'guru' to ensure visibility in attendance list
+            kelas: null,
+            nip: "199204262025212065"
         },
     })
 

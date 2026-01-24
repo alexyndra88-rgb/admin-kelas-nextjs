@@ -1,0 +1,57 @@
+import { NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
+
+export async function GET() {
+    try {
+        console.log("Starting deduplication...")
+        const deletedUsers: string[] = []
+
+        // 1. Fix Cecep & Kuraesin (Keep ones with NIP)
+        const targets = ["Cecep Rif'at Syarifudin, S.Pd", "Kuraesin, S.Pd.I"]
+
+        for (const name of targets) {
+            const users = await prisma.user.findMany({
+                where: { name: name },
+                orderBy: { createdAt: 'desc' } // Newest first
+            })
+
+            if (users.length > 1) {
+                // Keep the one with NIP, or the newest one if both have NIP
+                const keeper = users.find(u => u.nip && u.nip.length > 5) || users[0]
+
+                for (const user of users) {
+                    if (user.id !== keeper.id) {
+                        await prisma.user.delete({ where: { id: user.id } })
+                        deletedUsers.push(`${user.name} (No NIP/Duplicate)`)
+                    }
+                }
+            }
+        }
+
+        // 2. Fix Kepala Sekolah (Duplicate Identical)
+        const kepseks = await prisma.user.findMany({
+            where: { role: "kepsek" }
+        })
+
+        if (kepseks.length > 1) {
+            // Keep the one with username 'kepsek' if possible, or just the first one
+            const keeper = kepseks.find(u => u.username === "kepsek") || kepseks[0]
+            for (const k of kepseks) {
+                if (k.id !== keeper.id) {
+                    await prisma.user.delete({ where: { id: k.id } })
+                    deletedUsers.push(`Kepala Sekolah Duplicate (${k.id})`)
+                }
+            }
+        }
+
+        return NextResponse.json({
+            success: true,
+            deleted: deletedUsers,
+            message: `Berhasil menghapus ${deletedUsers.length} akun duplikat.`
+        })
+
+    } catch (error) {
+        console.error("Deduplication Error:", error)
+        return NextResponse.json({ error: "Gagal menghapus duplikat", details: error }, { status: 500 })
+    }
+}

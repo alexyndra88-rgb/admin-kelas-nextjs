@@ -20,6 +20,7 @@ export async function GET() {
             select: {
                 username: true,
                 kelas: true,
+                fotoProfilUrl: true
             }
         })
 
@@ -32,6 +33,7 @@ export async function GET() {
                 nama: info?.nama || "",
                 nip: info?.nip || "",
                 username: user?.username || `guru${k}`,
+                fotoProfilUrl: user?.fotoProfilUrl || ""
             }
         })
 
@@ -70,6 +72,10 @@ export async function POST(request: Request) {
                 updatePayload.password = hashedPassword
             }
 
+            if (data.fotoProfilUrl !== undefined) {
+                updatePayload.fotoProfilUrl = data.fotoProfilUrl
+            }
+
             // Find current user for this class
             const existingUser = await prisma.user.findFirst({
                 where: { kelas: data.kelas, role: "guru" }
@@ -89,7 +95,8 @@ export async function POST(request: Request) {
                         password: finalPassword,
                         name: data.nama,
                         role: "guru",
-                        kelas: data.kelas
+                        kelas: data.kelas,
+                        fotoProfilUrl: data.fotoProfilUrl
                     }
                 })
             }

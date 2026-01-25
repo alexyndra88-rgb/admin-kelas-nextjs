@@ -17,10 +17,22 @@ interface WaliKelas {
     nip: string
 }
 
+interface ClassSummary {
+    kelas: number
+    totalSiswa: number
+    hadir: number
+    sakit: number
+    izin: number
+    alpha: number
+    jurnalBulanIni: number
+    rataRataNilai: number
+}
+
 export default function DashboardPage() {
     const { data: session } = useSession()
     const router = useRouter()
-    const isAdmin = session?.user?.role === "admin" || session?.user?.role === "guru_mapel"
+    const isAdmin = session?.user?.role === "admin"
+    const isGuruMapel = session?.user?.role === "guru_mapel"
     const isKepsek = session?.user?.role === "kepsek"
     const isPengawas = session?.user?.role === "pengawas"
     const userKelas = session?.user?.kelas
@@ -34,6 +46,7 @@ export default function DashboardPage() {
 
     const [schoolInfo, setSchoolInfo] = useState<SchoolInfo | null>(null)
     const [myWaliInfo, setMyWaliInfo] = useState<WaliKelas | null>(null)
+    const [classSummary, setClassSummary] = useState<ClassSummary[]>([])
     const [stats, setStats] = useState({
         totalSiswa: 0,
         hadir: 0,
@@ -61,19 +74,19 @@ export default function DashboardPage() {
                     }
                 }
 
-                // Fetch stats (siswa, absensi, jurnal)
-                // Fetch stats (siswa, absensi, jurnal)
-                if (isAdmin) {
-                    // Admin uses principal overview API for aggregated data
+                // Fetch stats based on role
+                if (isAdmin || isGuruMapel) {
+                    // Admin/Guru Mapel uses principal overview API for aggregated data
                     const overviewRes = await fetch("/api/principal/overview")
                     if (overviewRes.ok) {
-                        const { overview } = await overviewRes.json()
+                        const { overview, classSummary: cs } = await overviewRes.json()
                         setStats({
                             totalSiswa: overview.totalStudents,
                             hadir: overview.totalHadir,
                             tidakHadir: overview.totalTidakHadir,
                             jurnal: overview.totalJurnal
                         })
+                        setClassSummary(cs || [])
                     }
                 } else if (userKelas) {
                     // Guru uses individual class APIs
@@ -107,7 +120,6 @@ export default function DashboardPage() {
                         let tidakHadirCount = 0
 
                         absensiData.forEach((a: { siswaId: string, status: string }) => {
-                            // Robustness: Dedupe
                             if (!uniqueStudents.has(a.siswaId)) {
                                 uniqueStudents.add(a.siswaId)
                                 if (a.status === "H") hadirCount++
@@ -123,9 +135,14 @@ export default function DashboardPage() {
             }
         }
         if (session) fetchDashboardData()
-    }, [session, userKelas, isAdmin])
+    }, [session, userKelas, isAdmin, isGuruMapel])
 
-    const quickActions = [
+    const quickActions = isAdmin ? [
+        { href: "/dashboard/siswa", icon: "👥", label: "Data Siswa", desc: "Kelola semua siswa" },
+        { href: "/dashboard/pengaturan", icon: "⚙️", label: "Pengaturan", desc: "Konfigurasi sistem" },
+        { href: "/dashboard/rekap-absensi", icon: "📊", label: "Rekap Kehadiran", desc: "Laporan absensi" },
+        { href: "/dashboard/rekap-nilai", icon: "📈", label: "Rekap Nilai", desc: "Laporan nilai" },
+    ] : [
         { href: "/dashboard/absensi", icon: "📋", label: "Isi Absensi", desc: "Kelola kehadiran harian" },
         { href: "/dashboard/nilai", icon: "📝", label: "Input Nilai", desc: "Masukkan nilai siswa" },
         { href: "/dashboard/jurnal", icon: "📖", label: "Tulis Jurnal", desc: "Dokumentasi pembelajaran" },
@@ -148,6 +165,11 @@ export default function DashboardPage() {
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
+                    {isAdmin && (
+                        <span className="px-3 py-1.5 bg-black text-white text-xs font-semibold rounded-full">
+                            🛡️ Admin
+                        </span>
+                    )}
                     <span className="px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full border border-emerald-200">
                         {new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
                     </span>
@@ -159,7 +181,7 @@ export default function DashboardPage() {
                 <StatCard
                     icon="users"
                     value={stats.totalSiswa}
-                    label="Total Siswa"
+                    label={isAdmin ? "Total Siswa Sekolah" : "Total Siswa"}
                     color="blue"
                 />
                 <StatCard
@@ -177,10 +199,128 @@ export default function DashboardPage() {
                 <StatCard
                     icon="book-open"
                     value={stats.jurnal}
-                    label="Total Jurnal"
+                    label={isAdmin ? "Jurnal Bulan Ini" : "Total Jurnal"}
                     color="purple"
                 />
             </div>
+
+            {/* Admin: Class Summary Table */}
+            {isAdmin && classSummary.length > 0 && (
+                <div className="turbo-card overflow-hidden">
+                    <div className="p-4 border-b border-[var(--border)] bg-[var(--accents-1)]">
+                        <h2 className="text-lg font-semibold text-[var(--foreground)]">📊 Ringkasan Per Kelas</h2>
+                        <p className="text-xs text-[var(--accents-5)] mt-1">Data kehadiran hari ini dan statistik per kelas</p>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr className="border-b border-[var(--border)] bg-[var(--accents-1)]/50">
+                                    <th className="px-4 py-3 text-left font-medium text-[var(--accents-5)]">Kelas</th>
+                                    <th className="px-4 py-3 text-center font-medium text-[var(--accents-5)]">Siswa</th>
+                                    <th className="px-4 py-3 text-center font-medium text-emerald-600">Hadir</th>
+                                    <th className="px-4 py-3 text-center font-medium text-amber-600">Sakit</th>
+                                    <th className="px-4 py-3 text-center font-medium text-blue-600">Izin</th>
+                                    <th className="px-4 py-3 text-center font-medium text-red-600">Alpha</th>
+                                    <th className="px-4 py-3 text-center font-medium text-purple-600">Jurnal</th>
+                                    <th className="px-4 py-3 text-center font-medium text-[var(--accents-5)]">Rata²</th>
+                                    <th className="px-4 py-3 text-right font-medium text-[var(--accents-5)]">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-[var(--border)]">
+                                {classSummary.map((cs) => {
+                                    const attendanceRate = cs.totalSiswa > 0
+                                        ? Math.round((cs.hadir / cs.totalSiswa) * 100)
+                                        : 0
+                                    return (
+                                        <tr key={cs.kelas} className="hover:bg-[var(--accents-1)] transition-colors">
+                                            <td className="px-4 py-3">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center font-bold text-blue-700">
+                                                        {cs.kelas}
+                                                    </div>
+                                                    <span className="font-medium text-[var(--foreground)]">Kelas {cs.kelas}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3 text-center font-semibold text-[var(--foreground)]">{cs.totalSiswa}</td>
+                                            <td className="px-4 py-3 text-center">
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+                                                    {cs.hadir}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-center">
+                                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cs.sakit > 0 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'}`}>
+                                                    {cs.sakit}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-center">
+                                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cs.izin > 0 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
+                                                    {cs.izin}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-center">
+                                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cs.alpha > 0 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'}`}>
+                                                    {cs.alpha}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-center">
+                                                <span className="text-purple-600 font-medium">{cs.jurnalBulanIni}</span>
+                                            </td>
+                                            <td className="px-4 py-3 text-center">
+                                                <span className={`font-bold ${cs.rataRataNilai >= 75 ? 'text-emerald-600' : cs.rataRataNilai >= 60 ? 'text-amber-600' : 'text-red-600'}`}>
+                                                    {cs.rataRataNilai || '-'}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-right">
+                                                <div className="flex justify-end gap-1">
+                                                    <Link
+                                                        href={`/dashboard/rekap-absensi?kelas=${cs.kelas}`}
+                                                        className="px-2 py-1 text-xs text-[var(--accents-5)] hover:text-black hover:bg-[var(--accents-2)] rounded transition-colors"
+                                                    >
+                                                        Absensi
+                                                    </Link>
+                                                    <Link
+                                                        href={`/dashboard/rekap-nilai?kelas=${cs.kelas}`}
+                                                        className="px-2 py-1 text-xs text-[var(--accents-5)] hover:text-black hover:bg-[var(--accents-2)] rounded transition-colors"
+                                                    >
+                                                        Nilai
+                                                    </Link>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )
+                                })}
+                            </tbody>
+                            <tfoot>
+                                <tr className="bg-[var(--accents-1)] border-t-2 border-[var(--border)]">
+                                    <td className="px-4 py-3 font-bold text-[var(--foreground)]">Total</td>
+                                    <td className="px-4 py-3 text-center font-bold text-[var(--foreground)]">
+                                        {classSummary.reduce((sum, cs) => sum + cs.totalSiswa, 0)}
+                                    </td>
+                                    <td className="px-4 py-3 text-center font-bold text-emerald-600">
+                                        {classSummary.reduce((sum, cs) => sum + cs.hadir, 0)}
+                                    </td>
+                                    <td className="px-4 py-3 text-center font-bold text-amber-600">
+                                        {classSummary.reduce((sum, cs) => sum + cs.sakit, 0)}
+                                    </td>
+                                    <td className="px-4 py-3 text-center font-bold text-blue-600">
+                                        {classSummary.reduce((sum, cs) => sum + cs.izin, 0)}
+                                    </td>
+                                    <td className="px-4 py-3 text-center font-bold text-red-600">
+                                        {classSummary.reduce((sum, cs) => sum + cs.alpha, 0)}
+                                    </td>
+                                    <td className="px-4 py-3 text-center font-bold text-purple-600">
+                                        {classSummary.reduce((sum, cs) => sum + cs.jurnalBulanIni, 0)}
+                                    </td>
+                                    <td className="px-4 py-3 text-center font-bold text-[var(--foreground)]">
+                                        {Math.round(classSummary.reduce((sum, cs) => sum + cs.rataRataNilai, 0) / classSummary.filter(cs => cs.rataRataNilai > 0).length) || '-'}
+                                    </td>
+                                    <td className="px-4 py-3"></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            )}
 
             {/* Quick Actions Section */}
             <div>
@@ -224,16 +364,18 @@ export default function DashboardPage() {
                             <p className="text-sm font-medium text-[var(--foreground)] truncate">{schoolInfo?.kepalaSekolah || "-"}</p>
                         </div>
                     </div>
-                    {/* Wali Kelas */}
+                    {/* Wali Kelas / Role */}
                     <div className="turbo-card p-4 flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-100 to-purple-200 text-purple-600 flex items-center justify-center text-lg flex-shrink-0">
-                            👩‍🏫
+                            {isAdmin ? "🛡️" : "👩‍🏫"}
                         </div>
                         <div className="flex-1 min-w-0">
                             <p className="text-[10px] font-semibold text-[var(--accents-5)] uppercase tracking-wider">
-                                Wali Kelas {userKelas || "-"}
+                                {isAdmin ? "Role Anda" : `Wali Kelas ${userKelas || "-"}`}
                             </p>
-                            <p className="text-sm font-medium text-[var(--foreground)] truncate">{myWaliInfo?.nama || "-"}</p>
+                            <p className="text-sm font-medium text-[var(--foreground)] truncate">
+                                {isAdmin ? "Administrator" : myWaliInfo?.nama || "-"}
+                            </p>
                         </div>
                     </div>
                     {/* Tahun Ajaran */}
@@ -249,35 +391,80 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            {/* Additional Info Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Rekap Links */}
-                <Link href="/dashboard/rekap-nilai" className="turbo-card p-5 flex items-center gap-4 hover:border-black hover:shadow-md transition-all group">
-                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-100 to-emerald-200 flex items-center justify-center text-3xl group-hover:scale-105 transition-transform">
-                        📈
-                    </div>
-                    <div className="flex-1">
-                        <h3 className="font-semibold text-[var(--foreground)] group-hover:text-emerald-700">Rekap Nilai</h3>
-                        <p className="text-sm text-[var(--accents-5)]">Lihat rekapitulasi nilai siswa per semester</p>
-                    </div>
-                    <svg className="w-5 h-5 text-[var(--accents-4)] group-hover:text-black group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                </Link>
+            {/* Admin: Additional Management Links */}
+            {isAdmin && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Link href="/dashboard/perpustakaan" className="turbo-card p-5 flex items-center gap-4 hover:border-black hover:shadow-md transition-all group">
+                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-cyan-100 to-cyan-200 flex items-center justify-center text-3xl group-hover:scale-105 transition-transform">
+                            📚
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="font-semibold text-[var(--foreground)] group-hover:text-cyan-700">Perpustakaan</h3>
+                            <p className="text-sm text-[var(--accents-5)]">Kelola koleksi buku</p>
+                        </div>
+                        <svg className="w-5 h-5 text-[var(--accents-4)] group-hover:text-black group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                    </Link>
 
-                <Link href="/dashboard/siswa" className="turbo-card p-5 flex items-center gap-4 hover:border-black hover:shadow-md transition-all group">
-                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-3xl group-hover:scale-105 transition-transform">
-                        👥
-                    </div>
-                    <div className="flex-1">
-                        <h3 className="font-semibold text-[var(--foreground)] group-hover:text-blue-700">Data Siswa</h3>
-                        <p className="text-sm text-[var(--accents-5)]">Kelola data siswa kelas {userKelas || "Anda"}</p>
-                    </div>
-                    <svg className="w-5 h-5 text-[var(--accents-4)] group-hover:text-black group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                </Link>
-            </div>
+                    <Link href="/dashboard/aset" className="turbo-card p-5 flex items-center gap-4 hover:border-black hover:shadow-md transition-all group">
+                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-orange-100 to-orange-200 flex items-center justify-center text-3xl group-hover:scale-105 transition-transform">
+                            📦
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="font-semibold text-[var(--foreground)] group-hover:text-orange-700">Data Aset</h3>
+                            <p className="text-sm text-[var(--accents-5)]">Inventaris barang</p>
+                        </div>
+                        <svg className="w-5 h-5 text-[var(--accents-4)] group-hover:text-black group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                    </Link>
+
+                    <Link href="/dashboard/absensi-guru" className="turbo-card p-5 flex items-center gap-4 hover:border-black hover:shadow-md transition-all group">
+                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-teal-100 to-teal-200 flex items-center justify-center text-3xl group-hover:scale-105 transition-transform">
+                            ✅
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="font-semibold text-[var(--foreground)] group-hover:text-teal-700">Absensi Guru</h3>
+                            <p className="text-sm text-[var(--accents-5)]">Kehadiran pengajar</p>
+                        </div>
+                        <svg className="w-5 h-5 text-[var(--accents-4)] group-hover:text-black group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                    </Link>
+                </div>
+            )}
+
+            {/* Teacher Links */}
+            {!isAdmin && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Link href="/dashboard/rekap-nilai" className="turbo-card p-5 flex items-center gap-4 hover:border-black hover:shadow-md transition-all group">
+                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-100 to-emerald-200 flex items-center justify-center text-3xl group-hover:scale-105 transition-transform">
+                            📈
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="font-semibold text-[var(--foreground)] group-hover:text-emerald-700">Rekap Nilai</h3>
+                            <p className="text-sm text-[var(--accents-5)]">Lihat rekapitulasi nilai siswa per semester</p>
+                        </div>
+                        <svg className="w-5 h-5 text-[var(--accents-4)] group-hover:text-black group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                    </Link>
+
+                    <Link href="/dashboard/siswa" className="turbo-card p-5 flex items-center gap-4 hover:border-black hover:shadow-md transition-all group">
+                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-3xl group-hover:scale-105 transition-transform">
+                            👥
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="font-semibold text-[var(--foreground)] group-hover:text-blue-700">Data Siswa</h3>
+                            <p className="text-sm text-[var(--accents-5)]">Kelola data siswa kelas {userKelas || "Anda"}</p>
+                        </div>
+                        <svg className="w-5 h-5 text-[var(--accents-4)] group-hover:text-black group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                    </Link>
+                </div>
+            )}
         </div>
     )
 }

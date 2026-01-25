@@ -10,19 +10,46 @@ import Link from "next/link"
 // adminOnly: only for admin  
 // kepsekOnly: only for kepsek
 // managementOnly: admin or kepsek
-const menuItems = [
+interface MenuItem {
+    href?: string
+    icon?: string
+    label: string
+    guruOnly?: boolean
+    adminOnly?: boolean
+    kepsekOnly?: boolean
+    allRoles?: boolean
+    isHeader?: boolean
+}
+
+const menuItems: MenuItem[] = [
+    // Utama
+    { label: "Utama", isHeader: true },
     { href: "/dashboard", icon: "home", label: "Dashboard" },
+
+    // Akademik
+    { label: "Akademik", isHeader: true },
     { href: "/dashboard/siswa", icon: "users", label: "Data Siswa", guruOnly: true },
     { href: "/dashboard/absensi", icon: "clipboard-check", label: "Daftar Hadir", guruOnly: true },
     { href: "/dashboard/nilai", icon: "chart-line", label: "Daftar Nilai", guruOnly: true },
     { href: "/dashboard/jurnal", icon: "book", label: "Jurnal Harian", guruOnly: true },
+    { href: "/dashboard/kalender", icon: "calendar", label: "Kalender Akademik" },
+
+    // Laporan
+    { label: "Laporan", isHeader: true },
     { href: "/dashboard/rekap-absensi", icon: "calendar-check", label: "Rekap Kehadiran" },
     { href: "/dashboard/rekap-nilai", icon: "document-report", label: "Rekap Nilai" },
-    { href: "/dashboard/kalender", icon: "calendar", label: "Kalender Akademik" },
     { href: "/dashboard/analitik-nilai", icon: "analytics", label: "Analitik Nilai" },
+
+    // Sarana & Prasarana
+    { label: "Sarana & Prasarana", isHeader: true },
     { href: "/dashboard/perpustakaan", icon: "library", label: "Perpustakaan", allRoles: true },
     { href: "/dashboard/aset", icon: "cube", label: "Data Aset", allRoles: true },
+
+    // Administrasi
+    { label: "Administrasi", isHeader: true },
     { href: "/dashboard/absensi-guru", icon: "user-check", label: "Daftar Hadir Guru", adminOnly: true },
+    { href: "/dashboard/manajemen-akun", icon: "users-cog", label: "Manajemen Akun", adminOnly: true },
+    { href: "/dashboard/activity-log", icon: "activity", label: "Log Aktivitas", adminOnly: true },
     { href: "/dashboard/kepala-sekolah", icon: "school", label: "Monitoring Sekolah", kepsekOnly: true },
     { href: "/dashboard/pengaturan", icon: "cog", label: "Pengaturan", adminOnly: true },
 ]
@@ -45,6 +72,8 @@ function Icon({ name, className, strokeWidth = 2 }: { name: string; className?: 
         "user-check": <><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M16 11l2 2 4-4" /></>,
         library: <><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" /></>,
         cube: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />,
+        activity: <><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M9 5a2 2 0 002 2h2a2 2 0 002-2" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M9 5a2 2 0 012-2h2a2 2 0 012 2" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M12 12v6m-3-3h6" /></>,
+        "users-cog": <><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M19.5 12a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm0 0v.5m0 2v-.5m1.5-1.5h-.5m-2 0h-.5" /></>,
     }
     return (
         <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -88,15 +117,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const isGuruMapel = userRole === "guru_mapel"
 
     // Function to check if menu item should be shown
-    const shouldShowMenuItem = (item: typeof menuItems[0]) => {
+    const shouldShowMenuItem = (item: MenuItem) => {
         // Items with allRoles are visible to everyone
-        if ('allRoles' in item && item.allRoles) return true
+        if (item.allRoles) return true
+
+        // Headers are usually safe to show, but we can refine this if needed
+        // For now, let's show all headers to keep structure
+        if (item.isHeader) return true
 
         // Admin can see everything except kepsekOnly
         if (isAdmin) {
-            if ('kepsekOnly' in item && item.kepsekOnly) return false
+            // Check existence of property before accessing
+            if (item.kepsekOnly) return false
             return true
         }
+
+        // Ensure item.href is present for path checks below
+        if (!item.href) return false;
+
         // Kepsek and Pengawas can see ONLY Monitoring Sekolah and Kalender Akademik
         if (isKepsek || isPengawas) {
             return ["/dashboard/kepala-sekolah", "/dashboard/kalender"].includes(item.href)
@@ -114,8 +152,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }
         // Guru (wali kelas) can see guruOnly and general items, not adminOnly or kepsekOnly
         if (isGuru) {
-            if ('adminOnly' in item && item.adminOnly) return false
-            if ('kepsekOnly' in item && item.kepsekOnly) return false
+            if (item.adminOnly) return false
+            if (item.kepsekOnly) return false
             return true
         }
         return false
@@ -161,10 +199,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </div>
 
                     {/* Navigation */}
-                    <nav className="flex-1 px-3 py-4 space-y-0.5">
-                        <p className="px-3 text-[10px] font-semibold text-[var(--accents-5)] uppercase mb-2">Menu</p>
-                        {menuItems.map((item) => {
+                    <nav className="flex-1 px-3 py-4 overflow-y-auto">
+                        {/* Headers embedded in the list */}
+                        {menuItems.map((item, index) => {
                             if (!shouldShowMenuItem(item)) return null;
+
+                            // Render Header
+                            if (item.isHeader) {
+                                return (
+                                    <p key={index} className="px-3 text-[10px] font-semibold text-[var(--accents-5)] uppercase mb-2 mt-4 first:mt-0 tracking-wider">
+                                        {item.label}
+                                    </p>
+                                )
+                            }
+
+                            // Safe check for href/icon before rendering link
+                            if (!item.href) return null;
 
                             const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))
                             return (
@@ -177,7 +227,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                         : "text-[var(--accents-5)] hover:bg-[var(--accents-1)] hover:text-black"
                                         }`}
                                 >
-                                    <Icon name={item.icon} className={`w-4 h-4 ${isActive ? 'text-black' : 'text-[var(--accents-4)]'}`} strokeWidth={2} />
+                                    <Icon name={item.icon || "menu"} className={`w-4 h-4 ${isActive ? 'text-black' : 'text-[var(--accents-4)]'}`} strokeWidth={2} />
                                     <span>{item.label}</span>
                                 </Link>
                             )
@@ -187,9 +237,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     {/* User Profile - Minimal */}
                     <div className="p-4 border-t border-[var(--border)]">
                         <div className="flex items-center gap-3 mb-3">
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-gray-200 to-gray-300 flex items-center justify-center text-xs font-bold text-[var(--accents-6)]">
-                                {session.user.name?.charAt(0)}
-                            </div>
+                            {session.user.fotoProfilUrl ? (
+                                <img
+                                    src={session.user.fotoProfilUrl}
+                                    alt={session.user.name || "User"}
+                                    className="w-8 h-8 rounded-full object-cover border border-[var(--border)]"
+                                />
+                            ) : (
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-gray-200 to-gray-300 flex items-center justify-center text-xs font-bold text-[var(--accents-6)]">
+                                    {session.user.name?.charAt(0)}
+                                </div>
+                            )}
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-[var(--foreground)] truncate">{session.user.name}</p>
                                 <p className="text-[10px] text-[var(--accents-5)] capitalize">{session.user.role}</p>

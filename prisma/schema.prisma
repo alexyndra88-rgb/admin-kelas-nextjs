@@ -9,17 +9,18 @@ datasource db {
 
 // User authentication
 model User {
-  id            String   @id @default(cuid())
-  username      String   @unique
+  id            String        @id @default(cuid())
+  username      String        @unique
   password      String
   name          String
-  nip           String?  // NIP or NIPTK
-  role          String   @default("guru") // admin, guru, kepsek, pengawas, guru_mapel
-  kelas         Int?     // 1-6, null for admin/kepsek/pengawas/guru_mapel
-  mapelDiampu   String?  // For guru_mapel: comma-separated subjects (e.g., "AKPK" or "PAI")
-  fotoProfilUrl String?  // Profile photo URL
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  nip           String?       // NIP or NIPTK
+  role          String        @default("guru") // admin, guru, kepsek, pengawas, guru_mapel
+  kelas         Int?          // 1-6, null for admin/kepsek/pengawas/guru_mapel
+  mapelDiampu   String?       // For guru_mapel: comma-separated subjects (e.g., "AKPK" or "PAI")
+  fotoProfilUrl String?       // Profile photo URL
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  activityLogs  ActivityLog[]
 }
 
 // School settings
@@ -155,4 +156,20 @@ model Aset {
   keterangan       String?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
+}
+
+// Activity Log for audit trail
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    String   // LOGIN, LOGOUT, CREATE, UPDATE, DELETE, EXPORT, RESET, etc.
+  details   String?  // Description of the action
+  metadata  String?  @db.Text // JSON string for additional data
+  ipAddress String?  // IP address of the user
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
 }

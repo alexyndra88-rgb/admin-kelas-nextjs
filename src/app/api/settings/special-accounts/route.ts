@@ -25,7 +25,8 @@ export async function GET() {
                 username: true,
                 role: true,
                 mapelDiampu: true,
-                nip: true
+                nip: true,
+                fotoProfilUrl: true
             },
             orderBy: { role: "asc" }
         })
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
         const { accounts } = await request.json()
 
         for (const account of accounts) {
-            const { id, name, username, password, role, mapelDiampu, nip } = account
+            const { id, name, username, password, role, mapelDiampu, nip, fotoProfilUrl } = account
 
             // Validate role 
             // Allow kepsek, pengawas, guru_mapel, AND guru (for staff/penjaga)
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
 
             if (id) {
                 // Update existing account
-                const updateData: { name: string; username: string; password?: string; nip?: string } = {
+                const updateData: any = {
                     name,
                     username,
                     nip
@@ -66,6 +67,13 @@ export async function POST(request: NextRequest) {
                 if (password && password.trim() !== "") {
                     updateData.password = await bcrypt.hash(password, 10)
                 }
+                if (fotoProfilUrl !== undefined) {
+                    updateData.fotoProfilUrl = fotoProfilUrl
+                }
+                if (role === "guru_mapel" && mapelDiampu !== undefined) {
+                    updateData.mapelDiampu = mapelDiampu
+                }
+
                 await prisma.user.update({
                     where: { id },
                     data: updateData,
@@ -79,7 +87,9 @@ export async function POST(request: NextRequest) {
                         username,
                         password: hashedPassword,
                         role,
-                        nip
+                        nip,
+                        fotoProfilUrl,
+                        mapelDiampu: role === "guru_mapel" ? mapelDiampu : undefined
                     },
                 })
             }

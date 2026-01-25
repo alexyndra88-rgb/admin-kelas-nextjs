@@ -41,3 +41,9 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# NotebookLM / MCP related (not part of this project)
+chrome_profile_notebooklm/
+notebooklm-config.json
+*.txt
+!README.txt

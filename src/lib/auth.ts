@@ -72,5 +72,36 @@ export const authOptions: NextAuthOptions = {
     session: {
         strategy: "jwt"
     },
+    events: {
+        async signIn({ user }) {
+            try {
+                await prisma.activityLog.create({
+                    data: {
+                        userId: user.id,
+                        action: "LOGIN",
+                        details: `Login sebagai ${user.role}`,
+                        ipAddress: "unknown" // NextAuth events don't provide easy access to IP
+                    }
+                })
+            } catch (error) {
+                console.error("Failed to log sign in:", error)
+            }
+        },
+        async signOut({ token }) {
+            try {
+                if (token && token.sub) {
+                    await prisma.activityLog.create({
+                        data: {
+                            userId: token.sub, // 'sub' is the user ID in JWT
+                            action: "LOGOUT",
+                            details: "Logout dari sistem",
+                        }
+                    })
+                }
+            } catch (error) {
+                console.error("Failed to log sign out:", error)
+            }
+        }
+    },
     secret: process.env.NEXTAUTH_SECRET
 }

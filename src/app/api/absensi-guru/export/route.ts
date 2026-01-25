@@ -258,10 +258,12 @@ export async function POST(request: NextRequest) {
             const dateRow = worksheet.addRow(["", "", "", "", "", `Wanayasa, ${sheetDateStr}`])
             worksheet.mergeCells(dateRow.number, 6, dateRow.number, 8)
             dateRow.getCell(6).alignment = { horizontal: 'center' }
+            dateRow.getCell(6).font = { name: 'Times New Roman', size: 12 }
 
             const titleRow = worksheet.addRow(["", "", "", "", "", `Kepala SDN 2 Nangerang`])
             worksheet.mergeCells(titleRow.number, 6, titleRow.number, 8)
             titleRow.getCell(6).alignment = { horizontal: 'center' }
+            titleRow.getCell(6).font = { name: 'Times New Roman', size: 12 }
 
             worksheet.addRow([])
             worksheet.addRow([])
@@ -270,11 +272,12 @@ export async function POST(request: NextRequest) {
             const nameRow = worksheet.addRow(["", "", "", "", "", kepsekName])
             worksheet.mergeCells(nameRow.number, 6, nameRow.number, 8)
             nameRow.getCell(6).alignment = { horizontal: 'center' }
-            nameRow.getCell(6).font = { bold: true, underline: true }
+            nameRow.getCell(6).font = { bold: true, underline: true, name: 'Times New Roman', size: 12 }
 
             const nipRow = worksheet.addRow(["", "", "", "", "", `NIP.${kepsekNip}`])
             worksheet.mergeCells(nipRow.number, 6, nipRow.number, 8)
             nipRow.getCell(6).alignment = { horizontal: 'center' }
+            nipRow.getCell(6).font = { name: 'Times New Roman', size: 12 }
         }
 
 
@@ -488,11 +491,13 @@ export async function POST(request: NextRequest) {
             dateRow.getCell(signerStartCol).value = `Wanayasa, ${footerDateStr}`
             worksheet.mergeCells(dateRow.number, signerStartCol, dateRow.number, signerEndCol)
             dateRow.getCell(signerStartCol).alignment = { horizontal: 'center' }
+            dateRow.getCell(signerStartCol).font = { name: 'Times New Roman', size: 12 }
 
             const titleRow = worksheet.addRow(new Array(totalCols).fill(""))
             titleRow.getCell(signerStartCol).value = `Kepala SDN 2 Nangerang`
             worksheet.mergeCells(titleRow.number, signerStartCol, titleRow.number, signerEndCol)
             titleRow.getCell(signerStartCol).alignment = { horizontal: 'center' }
+            titleRow.getCell(signerStartCol).font = { name: 'Times New Roman', size: 12 }
 
             worksheet.addRow([])
             worksheet.addRow([])
@@ -502,12 +507,13 @@ export async function POST(request: NextRequest) {
             nameRow.getCell(signerStartCol).value = kepsekName
             worksheet.mergeCells(nameRow.number, signerStartCol, nameRow.number, signerEndCol)
             nameRow.getCell(signerStartCol).alignment = { horizontal: 'center' }
-            nameRow.getCell(signerStartCol).font = { bold: true, underline: true }
+            nameRow.getCell(signerStartCol).font = { bold: true, underline: true, name: 'Times New Roman', size: 12 }
 
             const nipRow = worksheet.addRow(new Array(totalCols).fill(""))
             nipRow.getCell(signerStartCol).value = `NIP.${kepsekNip}`
             worksheet.mergeCells(nipRow.number, signerStartCol, nipRow.number, signerEndCol)
             nipRow.getCell(signerStartCol).alignment = { horizontal: 'center' }
+            nipRow.getCell(signerStartCol).font = { name: 'Times New Roman', size: 12 }
 
         } else {
             return NextResponse.json({ error: "Invalid parameters" }, { status: 400 })

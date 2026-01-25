@@ -192,6 +192,69 @@ export async function POST(request: NextRequest) {
                 })
             }
 
+            case "clean-duplicate-users": {
+                // Fetch all users except admin
+                const users = await prisma.user.findMany({
+                    where: { role: { not: "admin" } },
+                    orderBy: { createdAt: 'asc' } // Keep older ones by default
+                })
+
+                let deletedCount = 0
+                const processedIds = new Set<string>()
+
+                for (let i = 0; i < users.length; i++) {
+                    const u1 = users[i]
+                    if (processedIds.has(u1.id)) continue
+
+                    // Find duplicates by name (case insensitive)
+                    const duplicates = users.filter(u =>
+                        u.id !== u1.id &&
+                        !processedIds.has(u.id) &&
+                        u.name.toLowerCase().trim() === u1.name.toLowerCase().trim()
+                    )
+
+                    if (duplicates.length > 0) {
+                        for (const u2 of duplicates) {
+                            let toDelete = null
+
+                            // Case 1: Same NIP -> Delete duplicate (keep u1 as it is older)
+                            if (u1.nip && u2.nip && u1.nip === u2.nip) {
+                                toDelete = u2
+                            }
+                            // Case 2: One has NIP, one doesn't -> Delete the one without NIP
+                            else if (u1.nip && !u2.nip) {
+                                toDelete = u2
+                            }
+                            else if (!u1.nip && u2.nip) {
+                                toDelete = u1 // u1 deleted, u2 kept
+                                // Since u1 is deleted, we should mark it and stop processing u1
+                            }
+                            // Case 3: Both no NIP -> Delete duplicate
+                            else if (!u1.nip && !u2.nip) {
+                                toDelete = u2
+                            }
+
+                            if (toDelete) {
+                                await prisma.user.delete({ where: { id: toDelete.id } })
+                                processedIds.add(toDelete.id)
+                                deletedCount++
+
+                                // Specific logic if we deleted u1
+                                if (toDelete.id === u1.id) {
+                                    processedIds.add(u1.id)
+                                    break // Stop processing u1
+                                }
+                            }
+                        }
+                    }
+                }
+
+                return NextResponse.json({
+                    success: true,
+                    message: `${deletedCount} akun duplikat berhasil dihapus.`
+                })
+            }
+
             default:
                 return NextResponse.json({ error: "Invalid action" }, { status: 400 })
         }

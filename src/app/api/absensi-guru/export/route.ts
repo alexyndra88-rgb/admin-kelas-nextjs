@@ -4,6 +4,8 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { SCHOOL_CALENDAR_2025_2026 } from "@/lib/schoolCalendar"
 import ExcelJS from "exceljs"
+import fs from "fs"
+import path from "path"
 
 export async function POST(request: NextRequest) {
     try {
@@ -73,20 +75,78 @@ export async function POST(request: NextRequest) {
         const workbook = new ExcelJS.Workbook()
         let fileName = "";
 
+        // Helper: Load Logo
+        // Use process.cwd() to get the project root directory, works on Vercel
+        const logoDir = path.join(process.cwd(), "public", "logo");
+        const logoPemdaPath = path.join(logoDir, "LOGO-KABUPATEN-PURWAKARTA.png");
+        const logoSekolahPath = path.join(logoDir, "Logo SDN 2 Nangerang.png");
+
+        let logoPemdaId: number | null = null;
+        let logoSekolahId: number | null = null;
+
+        try {
+            if (fs.existsSync(logoPemdaPath)) {
+                logoPemdaId = workbook.addImage({
+                    filename: logoPemdaPath,
+                    extension: 'png',
+                });
+                console.log("Success load logo Pemda from", logoPemdaPath)
+            } else {
+                console.error("Logo Pemda not found at", logoPemdaPath)
+            }
+
+            if (fs.existsSync(logoSekolahPath)) {
+                logoSekolahId = workbook.addImage({
+                    filename: logoSekolahPath,
+                    extension: 'png',
+                });
+                console.log("Success load logo Sekolah from", logoSekolahPath)
+            } else {
+                console.error("Logo Sekolah not found at", logoSekolahPath)
+            }
+        } catch (e) {
+            console.error("Failed to load logos:", e);
+        }
+
+        // Helper to add logos to Sheet
+        const addLogosToSheet = (worksheet: ExcelJS.Worksheet, rightCol: number) => {
+            // rightCol is 1-based total columns count (e.g. 8)
+            // We want to place logo at right, so index is rightCol - 1 (e.g. 7)
+
+            if (logoPemdaId !== null) {
+                worksheet.addImage(logoPemdaId, {
+                    tl: { col: 0.2, row: 0.2 }, // Offset slightly inside A1
+                    ext: { width: 60, height: 75 },
+                    editAs: 'oneCell' // Anchor to cell A1 but free size
+                });
+            }
+            if (logoSekolahId !== null) {
+                // Place in the last column area
+                worksheet.addImage(logoSekolahId, {
+                    // Adjust horizontal offset to move it more to the right
+                    // rightCol is base 1, so index is rightCol-1.
+                    // Using rightCol - 0.8 moves it closer to the right edge than -1.2
+                    tl: { col: rightCol - 0.7, row: 0.2 },
+                    ext: { width: 75, height: 75 },
+                    editAs: 'oneCell'
+                });
+            }
+        }
+
         // Helper to Create Daily Sheet
         const createDailySheet = (dateObj: Date, attendanceData: any[]) => {
             const formattedDate = dateObj.toLocaleDateString("id-ID", {
                 weekday: "long", day: "numeric", month: "long", year: "numeric"
-            })
-            const todayStr = new Date().toLocaleDateString("id-ID", {
-                day: "numeric", month: "long", year: "numeric"
             })
             const sheetName = dateObj.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "2-digit" })
 
             const worksheet = workbook.addWorksheet(sheetName, {
                 pageSetup: {
                     orientation: 'landscape',
-                    paperSize: 5, // Legal (approx F4)
+                    paperSize: 5, // Legal
+                    fitToPage: true, // Force fit to page
+                    fitToWidth: 1,
+                    fitToHeight: 0, // Auto height
                     margins: {
                         left: 0.5, right: 0.5, top: 0.5, bottom: 0.5,
                         header: 0.3, footer: 0.3
@@ -94,10 +154,17 @@ export async function POST(request: NextRequest) {
                 }
             })
 
-            // Columns Setup
+            // Columns Setup - Adjusted for Legal Paper width (approx 14 inches printable?)
+            // Increased widths to fill the space better
             worksheet.columns = [
-                { width: 5 }, { width: 35 }, { width: 25 },
-                { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 10 }
+                { width: 6 },  // No
+                { width: 45 }, // Nama Guru (Wider)
+                { width: 25 }, // NIP
+                { width: 18 }, // Waktu Datang
+                { width: 18 }, // Tanda Tangan
+                { width: 18 }, // Waktu Pulang
+                { width: 18 }, // Tanda Tangan
+                { width: 15 }  // Ket
             ]
 
             // Title Rows
@@ -105,6 +172,7 @@ export async function POST(request: NextRequest) {
                 "PEMERINTAH KABUPATEN PURWAKARTA",
                 "DINAS PENDIDIKAN",
                 "SD NEGERI 2 NANGERANG",
+                "Alamat: Kp. Peuntas Rt 08/03 Desa Nangerang Kec. Wanayasa Kab. Purwakarta 41174",
                 "",
                 "DAFTAR HADIR GURU",
                 `Tanggal: ${formattedDate}`,
@@ -115,16 +183,23 @@ export async function POST(request: NextRequest) {
                 const row = worksheet.addRow([title])
                 worksheet.mergeCells(row.number, 1, row.number, 8)
                 row.font = { bold: true, size: 12, name: 'Arial' }
-                row.alignment = { horizontal: 'center' }
+                row.alignment = { horizontal: 'center', vertical: 'middle' }
 
                 if (index === 2) { // SD NEGERI...
                     row.font = { bold: true, size: 14, name: 'Arial' }
+                }
+                if (index === 3) { // Alamat
+                    row.font = { bold: false, size: 9, name: 'Arial', italic: true }
+                    // Move border here
                     row.getCell(1).border = { bottom: { style: 'double' } }
                 }
-                if (index === 4 || index === 5) { // Title Body
+                if (index === 5 || index === 6) { // Title Body
                     row.font = { bold: true, size: 12, name: 'Times New Roman' }
                 }
             })
+
+            // Add Logos
+            addLogosToSheet(worksheet, 8); // Rightmost is col 8
 
             // Header Data
             const headerRow = worksheet.addRow(["No", "Nama Guru", "NIP", "Waktu Datang", "Tanda Tangan", "Waktu Pulang", "Tanda Tangan", "Ket"])
@@ -179,7 +254,6 @@ export async function POST(request: NextRequest) {
             worksheet.addRow([])
             worksheet.addRow([])
 
-            const signRowStart = worksheet.lastRow!.number + 1
             const sheetDateStr = dateObj.toLocaleDateString("id-ID", { month: "long", year: "numeric" })
             const dateRow = worksheet.addRow(["", "", "", "", "", `Wanayasa, ${sheetDateStr}`])
             worksheet.mergeCells(dateRow.number, 6, dateRow.number, 8)
@@ -250,12 +324,14 @@ export async function POST(request: NextRequest) {
                 where: { tanggal: { gte: startDate, lte: endDate } }
             })
             const monthName = startDate.toLocaleDateString("id-ID", { month: "long", year: "numeric" })
-            const todayStr = new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })
 
             const worksheet = workbook.addWorksheet("Rekap Bulanan", {
                 pageSetup: {
                     orientation: 'landscape',
                     paperSize: 5,
+                    fitToPage: true,
+                    fitToWidth: 1,
+                    fitToHeight: 0,
                     margins: {
                         left: 0.5, right: 0.5, top: 0.5, bottom: 0.5,
                         header: 0.3, footer: 0.3
@@ -276,6 +352,7 @@ export async function POST(request: NextRequest) {
                 "PEMERINTAH KABUPATEN PURWAKARTA",
                 "DINAS PENDIDIKAN",
                 "SD NEGERI 2 NANGERANG",
+                "Alamat: Kp. Peuntas Rt 08/03 Desa Nangerang Kec. Wanayasa Kab. Purwakarta 41174",
                 "",
                 "REKAP KEHADIRAN GURU",
                 `Bulan: ${monthName}`,
@@ -286,16 +363,22 @@ export async function POST(request: NextRequest) {
                 const row = worksheet.addRow([title])
                 worksheet.mergeCells(row.number, 1, row.number, totalCols)
                 row.font = { bold: true, size: 12, name: 'Arial' }
-                row.alignment = { horizontal: 'center' }
+                row.alignment = { horizontal: 'center', vertical: 'middle' }
 
                 if (index === 2) {
                     row.font = { bold: true, size: 14, name: 'Arial' }
+                }
+                if (index === 3) {
+                    row.font = { bold: false, size: 9, name: 'Arial', italic: true }
                     row.getCell(1).border = { bottom: { style: 'double' } }
                 }
-                if (index === 4 || index === 5) {
+                if (index === 5 || index === 6) {
                     row.font = { bold: true, size: 11, name: 'Arial' }
                 }
             })
+
+            // Add Logos
+            addLogosToSheet(worksheet, totalCols);
 
             // Header Data
             const headerVals = ["No", "Nama Guru"]
@@ -396,7 +479,6 @@ export async function POST(request: NextRequest) {
             worksheet.addRow([])
 
             // Calculate signer position (right aligned)
-            const paddingRight = 3
             const signerWidth = 7 // spans
             const signerEndCol = totalCols - 1
             const signerStartCol = Math.max(1, signerEndCol - signerWidth + 1)

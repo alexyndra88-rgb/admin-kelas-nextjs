@@ -11,7 +11,7 @@ export const authOptions: NextAuthOptions = {
                 username: { label: "Username", type: "text" },
                 password: { label: "Password", type: "password" }
             },
-            async authorize(credentials) {
+            async authorize(credentials, req) {
                 if (!credentials?.username || !credentials?.password) {
                     return null
                 }
@@ -30,6 +30,24 @@ export const authOptions: NextAuthOptions = {
                     return null
                 }
 
+                // Capture IP address
+                let ip = "unknown"
+                if (req?.headers) {
+                    // Handle different header formats (Entries or generic object)
+                    const headers = req.headers as any
+                    // Try standard headers
+                    ip = headers.get?.("x-forwarded-for") ||
+                        headers["x-forwarded-for"] ||
+                        headers.get?.("x-real-ip") ||
+                        headers["x-real-ip"] ||
+                        "unknown"
+
+                    // Handle comma separated IPs (take first)
+                    if (ip.includes(",")) {
+                        ip = ip.split(",")[0].trim()
+                    }
+                }
+
                 return {
                     id: user.id,
                     name: user.name,
@@ -37,7 +55,8 @@ export const authOptions: NextAuthOptions = {
                     role: user.role,
                     kelas: user.kelas,
                     fotoProfilUrl: user.fotoProfilUrl,
-                    mapelDiampu: user.mapelDiampu
+                    mapelDiampu: user.mapelDiampu,
+                    loginIp: ip // Pass IP to the user object temporarily
                 }
             }
         })
@@ -75,12 +94,16 @@ export const authOptions: NextAuthOptions = {
     events: {
         async signIn({ user }) {
             try {
+                // Retrieve IP passed from authorize
+                const userWithIp = user as any
+                const ip = userWithIp.loginIp || "unknown"
+
                 await prisma.activityLog.create({
                     data: {
                         userId: user.id,
                         action: "LOGIN",
                         details: `Login sebagai ${user.role}`,
-                        ipAddress: "unknown" // NextAuth events don't provide easy access to IP
+                        ipAddress: ip
                     }
                 })
             } catch (error) {
